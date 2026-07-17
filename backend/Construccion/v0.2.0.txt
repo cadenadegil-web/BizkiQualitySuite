@@ -1,0 +1,33 @@
+
+📦 Bizki Quality Suite v0.2.0
+Módulo: Hallazgos BPM
+🎯 Objetivo
+
+Registrar todos los hallazgos de BPM durante inspecciones en planta.
+
+Arquitectura del módulo
+
+
+app/
+│
+├── api/
+│   ├── auth.py
+│   ├── users.py
+│   └── findings.py          🟢 NUEVO
+│
+├── models/
+│   ├── user.py
+│   └── finding.py           🟢 NUEVO
+│
+├── schemas/
+│   ├── auth.py
+│   ├── token.py
+│   ├── user.py
+│   └── finding.py           🟢 NUEVO
+│
+├── services/
+│   ├── user_service.py
+│   ├── auth_service.py
+│   └── finding_service.py   🟢 NUEVO
+│
+└── main.py                  🟡 MODIFICAR

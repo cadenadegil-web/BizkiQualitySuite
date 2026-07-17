@@ -1,0 +1,16 @@
+Usuario
+     │
+     ▼
+POST /auth/login
+     │
+     ▼
+PostgreSQL
+     │
+     ▼
+Verificación bcrypt
+     │
+     ▼
+JWT generado
+     │
+     ▼
+Token devuelto ✔

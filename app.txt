@@ -1,0 +1,69 @@
+app/
+├── main.py
+├── core/
+│   ├── config.py
+│   └── security.py
+├── database/
+│   ├── connection.py
+│   └── session.py
+├── models/
+│   └── user.py
+├── schemas/
+│   └── user.py
+├── api/
+│   └── auth.py
+
+
+Paso 2. Crea app/core/config.py
+
+2
+
+app/
+│
+├── api/
+├── core/
+├── database/
+├── models/
+├── schemas/
+├── services/
+├── security/
+└── main.py
+
+Usuarios
+
+app/
+│
+├── api/
+│   ├── auth.py
+│   └── users.py
+│
+├── core/
+│   ├── config.py
+│   └── security.py
+│
+├── database/
+│   ├── connection.py
+│   ├── base.py
+│   └── session.py
+│
+├── models/
+│   └── user.py
+│
+├── schemas/
+│   └── user.py
+│
+├── services/
+│   └── auth_service.py
+│
+└── main.py
+
+
+
+app/
+├── api/
+│   └── v1/
+│       ├── auth.py
+│       ├── users.py
+│       ├── findings.py
+│       ├── dashboard.py
+│       └── capa.py

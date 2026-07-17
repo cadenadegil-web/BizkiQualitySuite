@@ -1,0 +1,79 @@
+
+📦 Bizki Quality Suite v0.2.0
+Módulo: Hallazgos BPM
+🎯 Objetivo
+
+Registrar todos los hallazgos de BPM durante inspecciones en planta.
+
+Arquitectura del módulo
+
+
+app/
+│
+├── api/
+│   ├── auth.py
+│   ├── users.py
+│   └── findings.py          🟢 NUEVO
+│
+├── models/
+│   ├── user.py
+│   └── finding.py           🟢 NUEVO
+│
+├── schemas/
+│   ├── auth.py
+│   ├── token.py
+│   ├── user.py
+│   └── finding.py           🟢 NUEVO
+│
+├── services/
+│   ├── user_service.py
+│   ├── auth_service.py
+│   └── finding_service.py   🟢 NUEVO
+│
+└── main.py                  🟡 MODIFICAR
+
+
+Swagger
+    │
+    ▼
+POST /findings
+    │
+    ▼
+FastAPI
+    │
+    ▼
+FindingService
+    │
+    ▼
+SQLAlchemy
+    │
+    ▼
+PostgreSQL
+    │
+    ▼
+Tabla findings
+    │
+    ▼
+Hallazgo registrado ✔
+
+
+🎯 Mi propuesta de arquitectura
+
+En lugar de seguir agregando campos directamente al modelo Finding, propongo normalizar la base de datos. Tendríamos tablas como:
+
+users
+findings
+areas
+classifications
+statuses
+photos
+capa
+
+Con este diseño obtendremos varias ventajas:
+
+Evitamos datos duplicados.
+Es más fácil mantener listas desplegables.
+El Dashboard será más rápido.
+Será sencillo agregar nuevos módulos como CAPA, Auditorías, Inspecciones, KPI y Reportes.
+
+Creo que esta es la mejor decisión técnica para que Bizki Quality Suite pueda crecer hasta una versión 1.0.0 sólida y preparada para usarse en producción.

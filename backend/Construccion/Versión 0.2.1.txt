@@ -1,0 +1,203 @@
+Versión 0.2.1
+Entrega 1 - Catálogos BPM
+🎯 Objetivo
+
+Eliminar los textos libres para:
+
+Áreas
+Clasificación
+Estado
+
+y reemplazarlos por catálogos.
+
+📁 Estructura
+🟢 Archivos nuevos
+app/
+│
+├── models/
+│   ├── area.py
+│   ├── classification.py
+│   └── status.py
+│
+├── schemas/
+│   ├── area.py
+│   ├── classification.py
+│   └── status.py
+│
+├── services/
+│   ├── area_service.py
+│   ├── classification_service.py
+│   └── status_service.py
+│
+└── api/
+    ├── areas.py
+    ├── classifications.py
+    └── statuses.py
+🟢 app/models/area.py
+import uuid
+
+from sqlalchemy import String
+from sqlalchemy import Boolean
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+from app.database.base import Base
+
+
+class Area(Base):
+
+    __tablename__ = "areas"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False
+    )
+
+    active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True
+    )
+🟢 app/models/classification.py
+import uuid
+
+from sqlalchemy import Boolean
+from sqlalchemy import String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+from app.database.base import Base
+
+
+class Classification(Base):
+
+    __tablename__ = "classifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(50),
+        unique=True,
+        nullable=False
+    )
+
+    active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True
+    )
+🟢 app/models/status.py
+import uuid
+
+from sqlalchemy import Boolean
+from sqlalchemy import String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped
+from sqlalchemy.orm import mapped_column
+
+from app.database.base import Base
+
+
+class Status(Base):
+
+    __tablename__ = "statuses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(50),
+        unique=True,
+        nullable=False
+    )
+
+    active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True
+    )
+Después modificaremos Finding
+
+En lugar de guardar:
+
+area = "Mezcla"
+
+guardaremos:
+
+area_id
+
+En lugar de:
+
+classification = "Mayor"
+
+guardaremos:
+
+classification_id
+
+En lugar de:
+
+status = "ABIERTO"
+
+guardaremos:
+
+status_id
+La base de datos quedará así
+users
+areas
+classifications
+statuses
+findings
+Catálogo inicial
+Areas
+Pre-pesado
+Mezcla
+Depositadora
+Horno
+Enfriamiento
+Empaque
+Almacén
+Despacho
+Clasificación
+Crítico
+Mayor
+Menor
+Observación
+Estado
+Abierto
+En proceso
+Pendiente
+Cerrado
+Ventajas
+
+Cuando hagamos el Dashboard podremos consultar fácilmente:
+
+Hallazgos por área
+Hallazgos por clasificación
+Hallazgos abiertos
+
+sin depender de textos escritos de distintas formas.
+
+🚀 Lo que viene en la Entrega 2
+
+En la siguiente entrega implementaré:
+
+Modificación del modelo Finding para usar relaciones (ForeignKey) con Area, Classification y Status.
+Migración de la base de datos para crear las nuevas tablas y actualizar findings.
+Endpoints CRUD para administrar los catálogos (/areas, /classifications, /statuses).
+Carga automática de los valores iniciales (seed) para que al iniciar el sistema ya existan las áreas, clasificaciones y estados predeterminados.
+💡 Recomendación técnica
+
+A partir de esta versión también incorporaremos Alembic para manejar migraciones de la base de datos. Hasta ahora hemos creado tablas automáticamente con create_all(), lo cual fue útil para arrancar el proyecto, pero para un sistema que seguirá creciendo (Hallazgos, CAPA, Dashboard, Auditorías, KPI, etc.) las migraciones versionadas serán mucho más seguras y profesionales.
