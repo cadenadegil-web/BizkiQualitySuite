@@ -1,32 +1,41 @@
-app/models/status.py
-import uuid
+from uuid import UUID
 
-from sqlalchemy import Boolean
-from sqlalchemy import String
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-
-from app.database.base import Base
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 
-class Status(Base):
+class StatusBase(BaseModel):
+    """
+    Esquema base para los estados de un hallazgo.
+    """
 
-    __tablename__ = "statuses"
+    name: str
+    active: bool = True
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
 
-    name: Mapped[str] = mapped_column(
-        String(50),
-        unique=True,
-        nullable=False
-    )
+class StatusCreate(StatusBase):
+    """
+    Esquema utilizado para crear un estado.
+    """
+    pass
 
-    active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True
+
+class StatusUpdate(BaseModel):
+    """
+    Esquema utilizado para actualizar un estado.
+    """
+
+    name: str | None = None
+    active: bool | None = None
+
+
+class StatusResponse(StatusBase):
+    """
+    Esquema utilizado en las respuestas de la API.
+    """
+
+    id: UUID
+
+    model_config = ConfigDict(
+        from_attributes=True
     )

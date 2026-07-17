@@ -1,33 +1,23 @@
-app/models/area.py
-import uuid
+from uuid import UUID
 
-from sqlalchemy import String
-from sqlalchemy import Boolean
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-
-from app.database.base import Base
+from pydantic import BaseModel, ConfigDict
 
 
-class Area(Base):
+class AreaBase(BaseModel):
+    name: str
+    active: bool = True
 
-    __tablename__ = "areas"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
+class AreaCreate(AreaBase):
+    pass
 
-    name: Mapped[str] = mapped_column(
-        String(100),
-        unique=True,
-        nullable=False
-    )
 
-    active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True
-    )
+class AreaUpdate(BaseModel):
+    name: str | None = None
+    active: bool | None = None
 
+
+class AreaResponse(AreaBase):
+    id: UUID
+
+    model_config = ConfigDict(from_attributes=True)

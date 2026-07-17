@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environment
+backend/.venv/
+.venv/
+venv/
+
+# Environment
+.env
+*.env
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Logs
+*.log
+
+# SQLite
+*.db
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# Alembic
+alembic/versions/__pycache__/
+
+# OS
+Thumbs.db
+.DS_Store

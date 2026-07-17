@@ -1,32 +1,23 @@
-app/models/classification.py
-import uuid
+from uuid import UUID
 
-from sqlalchemy import Boolean
-from sqlalchemy import String
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-
-from app.database.base import Base
+from pydantic import BaseModel, ConfigDict
 
 
-class Classification(Base):
+class ClassificationBase(BaseModel):
+    name: str
+    active: bool = True
 
-    __tablename__ = "classifications"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4
-    )
+class ClassificationCreate(ClassificationBase):
+    pass
 
-    name: Mapped[str] = mapped_column(
-        String(50),
-        unique=True,
-        nullable=False
-    )
 
-    active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True
-    )
+class ClassificationUpdate(BaseModel):
+    name: str | None = None
+    active: bool | None = None
+
+
+class ClassificationResponse(ClassificationBase):
+    id: UUID
+
+    model_config = ConfigDict(from_attributes=True)

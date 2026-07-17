@@ -2,37 +2,61 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
+from pydantic import ConfigDict
 
 
 class FindingBase(BaseModel):
-    area: str
+    """
+    Información base de un hallazgo BPM.
+    """
+
     process: str
     finding_type: str
-    classification: str
     description: str
     responsible: str
 
+    area_id: UUID
+    classification_id: UUID
+    status_id: UUID
+    user_id: UUID | None = None
+
+    active: bool = True
+
 
 class FindingCreate(FindingBase):
+    """
+    Esquema utilizado para crear un hallazgo.
+    """
     pass
 
 
 class FindingUpdate(BaseModel):
-    area: str | None = None
+    """
+    Esquema utilizado para actualizar un hallazgo.
+    """
+
     process: str | None = None
     finding_type: str | None = None
-    classification: str | None = None
     description: str | None = None
     responsible: str | None = None
-    status: str | None = None
+
+    area_id: UUID | None = None
+    classification_id: UUID | None = None
+    status_id: UUID | None = None
+    user_id: UUID | None = None
+
+    active: bool | None = None
 
 
 class FindingResponse(FindingBase):
+    """
+    Respuesta devuelta por la API.
+    """
+
     id: UUID
     code: str
-    status: str
-    active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        from_attributes=True
+    )
