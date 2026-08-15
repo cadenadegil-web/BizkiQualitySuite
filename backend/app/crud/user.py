@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -45,7 +45,8 @@ def get_by_username(
     """
     Busca un usuario por su nombre de usuario.
     """
-    stmt = select(User).where(User.username == username)
+    # Compare case-insensitively to avoid mismatches due to casing
+    stmt = select(User).where(func.lower(User.username) == username.lower())
     return db.scalar(stmt)
 
 

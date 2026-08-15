@@ -6,11 +6,12 @@ class Settings(BaseSettings):
     APP_NAME: str
     APP_VERSION: str
 
-    DATABASE_HOST: str
-    DATABASE_PORT: int
-    DATABASE_NAME: str
-    DATABASE_USER: str
-    DATABASE_PASSWORD: str
+    DATABASE_HOST: str = "localhost"
+    DATABASE_PORT: int = 5432
+    DATABASE_NAME: str = "bizki_quality"
+    DATABASE_USER: str = "postgres"
+    DATABASE_PASSWORD: str = ""
+    DATABASE_URL: str | None = None
 
     SECRET_KEY: str
     ALGORITHM: str
@@ -18,6 +19,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()

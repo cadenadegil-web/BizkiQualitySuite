@@ -14,3 +14,6 @@ python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 python-multipart==0.0.20
+pylatex==1.4.2
+reportlab==4.4.1
+matplotlib==3.9.0

@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: bizki-quality-backend
+    env: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_NAME
+        value: Bizki Quality Suite
+      - key: APP_VERSION
+        value: 0.1.0
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: DATABASE_URL
+        sync: false # Deberás pegar tu URL de Supabase en el panel de Render
+      - key: SECRET_KEY
+        generateValue: true # Render generará una clave secreta segura automáticamente

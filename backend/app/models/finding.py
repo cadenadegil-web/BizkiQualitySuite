@@ -1,26 +1,25 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean
-from sqlalchemy import DateTime
-from sqlalchemy import ForeignKey
-from sqlalchemy import String
-from sqlalchemy import Text
-from sqlalchemy import func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.models.area import Area
+    from app.models.classification import Classification
+    from app.models.status import Status
+    from app.models.user import User
+    from app.models.capa import CAPA
+    from app.models.evidence import Evidence
 
 
 class Finding(Base):
     """
     Hallazgos BPM / Calidad.
-
-    Este modelo utiliza únicamente claves foráneas hacia los
-    catálogos del sistema.
     """
 
     __tablename__ = "findings"
@@ -78,12 +77,12 @@ class Finding(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
         nullable=False,
-    )
+        server_default=func.now(),
+   )
 
     # =====================================================
-    # Relaciones (Foreign Keys)
+    # Foreign Keys
     # =====================================================
 
     area_id: Mapped[uuid.UUID] = mapped_column(
@@ -111,7 +110,7 @@ class Finding(Base):
     )
 
     # =====================================================
-    # ORM Relationships
+    # Relaciones ORM
     # =====================================================
 
     area: Mapped["Area"] = relationship(
@@ -138,13 +137,26 @@ class Finding(Base):
         lazy="joined",
     )
 
+    capas: Mapped[list["CAPA"]] = relationship(
+        "CAPA",
+        back_populates="finding",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    evidences: Mapped[list["Evidence"]] = relationship(
+        "Evidence",
+        back_populates="finding",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
     # =====================================================
     # Representación
     # =====================================================
 
     def __repr__(self) -> str:
         return (
-            f"<Finding("
-            f"code='{self.code}', "
+            f"<Finding(code='{self.code}', "
             f"process='{self.process}')>"
         )

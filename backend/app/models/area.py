@@ -8,6 +8,11 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from app.database.base import Base
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.finding import Finding
+    from app.models.audit import Audit
 
 
 class Area(Base):
@@ -50,6 +55,13 @@ class Area(Base):
 
     findings: Mapped[list["Finding"]] = relationship(
         "Finding",
+        back_populates="area",
+        cascade="save-update",
+        lazy="select",
+    )
+
+    audits: Mapped[list["Audit"]] = relationship(
+        "Audit",
         back_populates="area",
         cascade="save-update",
         lazy="select",

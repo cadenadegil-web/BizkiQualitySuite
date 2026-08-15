@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean
 from sqlalchemy import DateTime
@@ -11,6 +12,11 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from app.database.base import Base
+
+
+if TYPE_CHECKING:
+    from app.models.finding import Finding
+    from app.models.evidence import Evidence
 
 
 class User(Base):
@@ -105,6 +111,12 @@ class User(Base):
         back_populates="user",
         lazy="select",
         cascade="save-update",
+    )
+
+    evidences: Mapped[list["Evidence"]] = relationship(
+        "Evidence",
+        back_populates="user",
+        lazy="selectin",
     )
 
     # =====================================================
