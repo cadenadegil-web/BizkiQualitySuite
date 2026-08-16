@@ -36,6 +36,8 @@ import CategoryIcon from "@mui/icons-material/Category";
 import LabelIcon from "@mui/icons-material/Label";
 import FlagIcon from "@mui/icons-material/Flag";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import TableViewIcon from "@mui/icons-material/TableView";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 
 import {
   getCatalogItems,
@@ -45,6 +47,10 @@ import {
   CatalogItem,
   CatalogType,
 } from "../../services/catalogs.service";
+import {
+  exportCatalogToPDF,
+  exportCatalogToExcel,
+} from "../../services/export.service";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -248,26 +254,79 @@ export default function CatalogsPage() {
     }
   };
 
+  const filteredItems = items.filter(item => {
+    const matchesName = item.name.toLowerCase().includes(filterName.toLowerCase());
+    const matchesCategory = currentType === "norms"
+      ? (item.category || "").toLowerCase().includes(filterCategory.toLowerCase())
+      : true;
+    const matchesDescription = currentType === "norms"
+      ? (item.description || "").toLowerCase().includes(filterDescription.toLowerCase())
+      : true;
+    
+    let matchesStatus = true;
+    if (filterStatus === "active") matchesStatus = item.active === true;
+    if (filterStatus === "inactive") matchesStatus = item.active === false;
+
+    return matchesName && matchesCategory && matchesDescription && matchesStatus;
+  });
+
+  const handleExportPDF = () => {
+    exportCatalogToPDF(filteredItems, getCatalogTitle(tabValue));
+  };
+
+  const handleExportExcel = () => {
+    exportCatalogToExcel(filteredItems, getCatalogTitle(tabValue));
+  };
+
   return (
     <Box sx={{ width: "100%" }}>
       <Stack
         direction="row"
         justifyContent="space-between"
         alignItems="center"
+        flexWrap="wrap"
+        gap={1}
         sx={{ mb: 3, width: "100%" }}
       >
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           Catálogos del Sistema
         </Typography>
 
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleOpenCreate}
-        >
-          Nuevo Registro
-        </Button>
+        <Stack direction="row" gap={1} flexWrap="wrap">
+          {/* Exportar PDF */}
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<PictureAsPdfIcon />}
+            onClick={handleExportPDF}
+            disabled={filteredItems.length === 0}
+            sx={{ textTransform: "none" }}
+          >
+            Exportar PDF
+          </Button>
+
+          {/* Exportar Excel */}
+          <Button
+            variant="outlined"
+            color="success"
+            startIcon={<TableViewIcon />}
+            onClick={handleExportExcel}
+            disabled={filteredItems.length === 0}
+            sx={{ textTransform: "none" }}
+          >
+            Exportar Excel
+          </Button>
+
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreate}
+            sx={{ textTransform: "none" }}
+          >
+            Nuevo Registro
+          </Button>
+        </Stack>
       </Stack>
 
       <Paper sx={{ width: "100%", borderRadius: 2 }}>
@@ -411,22 +470,6 @@ export default function CatalogsPage() {
         </Box>
       );
     }
-
-    const filteredItems = items.filter(item => {
-      const matchesName = item.name.toLowerCase().includes(filterName.toLowerCase());
-      const matchesCategory = currentType === "norms"
-        ? (item.category || "").toLowerCase().includes(filterCategory.toLowerCase())
-        : true;
-      const matchesDescription = currentType === "norms"
-        ? (item.description || "").toLowerCase().includes(filterDescription.toLowerCase())
-        : true;
-      
-      let matchesStatus = true;
-      if (filterStatus === "active") matchesStatus = item.active === true;
-      if (filterStatus === "inactive") matchesStatus = item.active === false;
-
-      return matchesName && matchesCategory && matchesDescription && matchesStatus;
-    });
 
     return (
       <TableContainer>
