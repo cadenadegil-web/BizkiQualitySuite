@@ -10,6 +10,7 @@ import {
 import {
   DataGrid,
   GridColDef,
+  GridToolbar,
 } from "@mui/x-data-grid";
 
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -216,12 +217,16 @@ export default function FindingTable({
 
         autoHeight
 
+        slots={{
+          toolbar: GridToolbar,
+        }}
+
         sx={{
           border: 0,
 
           "& .MuiDataGrid-columnHeaders": {
             backgroundColor: "#1976d2",
-            color: "#000",
+            color: "#fff",
             fontWeight: "bold",
             fontSize: 15,
           },

@@ -92,6 +92,12 @@ export default function CatalogsPage() {
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
 
+  // Column filter states
+  const [filterName, setFilterName] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterDescription, setFilterDescription] = useState("");
+  const [filterStatus, setFilterStatus] = useState(""); // "", "active", "inactive"
+
   const getCatalogType = (tab: number): CatalogType => {
     switch (tab) {
       case 0: return "areas";
@@ -133,6 +139,10 @@ export default function CatalogsPage() {
   }
 
   useEffect(() => {
+    setFilterName("");
+    setFilterCategory("");
+    setFilterDescription("");
+    setFilterStatus("");
     loadItems(tabValue);
   }, [tabValue]);
 
@@ -402,6 +412,22 @@ export default function CatalogsPage() {
       );
     }
 
+    const filteredItems = items.filter(item => {
+      const matchesName = item.name.toLowerCase().includes(filterName.toLowerCase());
+      const matchesCategory = currentType === "norms"
+        ? (item.category || "").toLowerCase().includes(filterCategory.toLowerCase())
+        : true;
+      const matchesDescription = currentType === "norms"
+        ? (item.description || "").toLowerCase().includes(filterDescription.toLowerCase())
+        : true;
+      
+      let matchesStatus = true;
+      if (filterStatus === "active") matchesStatus = item.active === true;
+      if (filterStatus === "inactive") matchesStatus = item.active === false;
+
+      return matchesName && matchesCategory && matchesDescription && matchesStatus;
+    });
+
     return (
       <TableContainer>
         <Table>
@@ -415,9 +441,65 @@ export default function CatalogsPage() {
                 Acciones
               </TableCell>
             </TableRow>
+            <TableRow>
+              <TableCell sx={{ p: 1 }}>
+                <TextField
+                  placeholder="Filtrar por nombre..."
+                  size="small"
+                  variant="outlined"
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
+                  sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                  fullWidth
+                />
+              </TableCell>
+              {currentType === "norms" && (
+                <TableCell sx={{ p: 1 }}>
+                  <TextField
+                    placeholder="Filtrar por categoría..."
+                    size="small"
+                    variant="outlined"
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                    fullWidth
+                  />
+                </TableCell>
+              )}
+              {currentType === "norms" && (
+                <TableCell sx={{ p: 1 }}>
+                  <TextField
+                    placeholder="Filtrar por punto de control..."
+                    size="small"
+                    variant="outlined"
+                    value={filterDescription}
+                    onChange={(e) => setFilterDescription(e.target.value)}
+                    sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                    fullWidth
+                  />
+                </TableCell>
+              )}
+              <TableCell sx={{ p: 1 }}>
+                <TextField
+                  select
+                  size="small"
+                  variant="outlined"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  SelectProps={{ native: true }}
+                  sx={{ backgroundColor: "#fff", borderRadius: 1, minWidth: 100 }}
+                  fullWidth
+                >
+                  <option value="">Todos</option>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </TextField>
+              </TableCell>
+              <TableCell align="right" sx={{ p: 1 }}></TableCell>
+            </TableRow>
           </TableHead>
           <TableBody>
-            {items.map((item) => (
+            {filteredItems.map((item) => (
               <TableRow key={item.id} hover>
                 <TableCell sx={{ fontWeight: 500 }}>{item.name}</TableCell>
                 {currentType === "norms" && (
@@ -462,9 +544,9 @@ export default function CatalogsPage() {
               </TableRow>
             ))}
 
-            {items.length === 0 && (
+            {filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                <TableCell colSpan={currentType === "norms" ? 5 : 3} align="center" sx={{ py: 4, color: "text.secondary" }}>
                   No existen registros en este catálogo.
                 </TableCell>
               </TableRow>

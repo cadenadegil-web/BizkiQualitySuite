@@ -49,6 +49,13 @@ export default function UsersPage() {
   }>({ open: false, message: "", severity: "success" });
   const [submitting, setSubmitting] = useState(false);
 
+  // Column filter states
+  const [filterFullName, setFilterFullName] = useState("");
+  const [filterUsername, setFilterUsername] = useState("");
+  const [filterEmail, setFilterEmail] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+  const [filterStatus, setFilterStatus] = useState(""); // "", "active", "inactive"
+
   async function loadUsers() {
     try {
       const data = await getUsers();
@@ -149,52 +156,133 @@ export default function UsersPage() {
               <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Estado</TableCell>
               <TableCell sx={{ color: "#fff", fontWeight: "bold" }} align="right">Acciones</TableCell>
             </TableRow>
+            <TableRow>
+              <TableCell sx={{ p: 1 }}>
+                <TextField
+                  placeholder="Filtrar..."
+                  size="small"
+                  variant="outlined"
+                  value={filterFullName}
+                  onChange={(e) => setFilterFullName(e.target.value)}
+                  sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                  fullWidth
+                />
+              </TableCell>
+              <TableCell sx={{ p: 1 }}>
+                <TextField
+                  placeholder="Filtrar..."
+                  size="small"
+                  variant="outlined"
+                  value={filterUsername}
+                  onChange={(e) => setFilterUsername(e.target.value)}
+                  sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                  fullWidth
+                />
+              </TableCell>
+              <TableCell sx={{ p: 1 }}>
+                <TextField
+                  placeholder="Filtrar..."
+                  size="small"
+                  variant="outlined"
+                  value={filterEmail}
+                  onChange={(e) => setFilterEmail(e.target.value)}
+                  sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                  fullWidth
+                />
+              </TableCell>
+              <TableCell sx={{ p: 1 }}>
+                <TextField
+                  placeholder="Filtrar..."
+                  size="small"
+                  variant="outlined"
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                  fullWidth
+                />
+              </TableCell>
+              <TableCell sx={{ p: 1 }}>
+                <TextField
+                  select
+                  size="small"
+                  variant="outlined"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  SelectProps={{ native: true }}
+                  sx={{ backgroundColor: "#fff", borderRadius: 1, minWidth: 100 }}
+                  fullWidth
+                >
+                  <option value="">Todos</option>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </TextField>
+              </TableCell>
+              <TableCell align="right" sx={{ p: 1 }}></TableCell>
+            </TableRow>
           </TableHead>
           <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id || user.username} hover>
-                <TableCell>{user.full_name}</TableCell>
-                <TableCell>{user.username}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell sx={{ textTransform: "capitalize" }}>{user.role}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={user.is_active ? "Activo" : "Inactivo"}
-                    color={user.is_active ? "success" : "default"}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell align="right">
-                  <Stack direction="row" spacing={1} justifyContent="flex-end">
-                    <Tooltip title="Editar Usuario">
-                      <IconButton
-                        color="warning"
-                        onClick={() => handleOpenEdit(user)}
-                        size="small"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Eliminar Usuario">
-                      <IconButton
-                        color="error"
-                        onClick={() => setDeletingUser(user)}
-                        size="small"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
-            {users.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
-                  No hay usuarios registrados.
-                </TableCell>
-              </TableRow>
-            )}
+            {(() => {
+              const filteredUsers = users.filter(user => {
+                const matchesFullName = (user.full_name || "").toLowerCase().includes(filterFullName.toLowerCase());
+                const matchesUsername = (user.username || "").toLowerCase().includes(filterUsername.toLowerCase());
+                const matchesEmail = (user.email || "").toLowerCase().includes(filterEmail.toLowerCase());
+                const matchesRole = (user.role || "").toLowerCase().includes(filterRole.toLowerCase());
+                
+                let matchesStatus = true;
+                if (filterStatus === "active") matchesStatus = user.is_active === true;
+                if (filterStatus === "inactive") matchesStatus = user.is_active === false;
+
+                return matchesFullName && matchesUsername && matchesEmail && matchesRole && matchesStatus;
+              });
+
+              if (filteredUsers.length === 0) {
+                return (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                      No hay usuarios registrados que coincidan con el filtro.
+                    </TableCell>
+                  </TableRow>
+                );
+              }
+
+              return filteredUsers.map((user) => (
+                <TableRow key={user.id || user.username} hover>
+                  <TableCell>{user.full_name}</TableCell>
+                  <TableCell>{user.username}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell sx={{ textTransform: "capitalize" }}>{user.role}</TableCell>
+                  <TableCell>
+                    <Chip
+                      label={user.is_active ? "Activo" : "Inactivo"}
+                      color={user.is_active ? "success" : "default"}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <Tooltip title="Editar Usuario">
+                        <IconButton
+                          color="warning"
+                          onClick={() => handleOpenEdit(user)}
+                          size="small"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Eliminar Usuario">
+                        <IconButton
+                          color="error"
+                          onClick={() => setDeletingUser(user)}
+                          size="small"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ));
+            })()}
           </TableBody>
         </Table>
       </TableContainer>
