@@ -42,10 +42,12 @@ app.add_middleware(
 # Fallback: ensure CORS headers are present on all responses
 @app.middleware("http")
 async def add_cors_headers(request, call_next):
+    origin = request.headers.get("origin", "*")
+    
     # Handle preflight
     if request.method == "OPTIONS":
         headers = {
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": origin,
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Methods": "*",
             "Access-Control-Allow-Headers": "*",
@@ -53,7 +55,7 @@ async def add_cors_headers(request, call_next):
         return Response(status_code=200, headers=headers)
 
     response = await call_next(request)
-    response.headers.setdefault("Access-Control-Allow-Origin", "*")
+    response.headers.setdefault("Access-Control-Allow-Origin", origin)
     response.headers.setdefault("Access-Control-Allow-Credentials", "true")
     response.headers.setdefault("Access-Control-Allow-Methods", "*")
     response.headers.setdefault("Access-Control-Allow-Headers", "*")
