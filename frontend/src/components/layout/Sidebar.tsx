@@ -38,7 +38,7 @@ const menu = [
     path: "/findings",
   },
   {
-    text: "Acciones Correctivas",
+    text: "Plan de Acción Correctiva (CAP)",
     icon: <AssignmentTurnedIn />,
     path: "/capas",
   },

@@ -25,8 +25,8 @@ export default function CapasPage() {
   return (
     <>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography variant="h4">Acciones Correctivas</Typography>
-        <Button variant="contained" onClick={() => navigate("/capas/new")}>Nueva Acción Correctiva</Button>
+        <Typography variant="h4">Plan de Acción Correctiva (CAP)</Typography>
+        <Button variant="contained" onClick={() => navigate("/capas/new")}>Nuevo Plan de Acción (CAP)</Button>
       </Box>
 
       <Card>
@@ -36,7 +36,7 @@ export default function CapasPage() {
               <CircularProgress />
             </Box>
           ) : error ? (
-            <Alert severity="error">No se pudieron cargar las Acciones Correctivas.</Alert>
+            <Alert severity="error">No se pudieron cargar los Planes de Acción (CAP).</Alert>
           ) : (
             <List>
               {(data ?? []).map((capa: any) => (
