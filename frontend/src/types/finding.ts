@@ -1,3 +1,5 @@
+import { CAPA } from "./capa";
+
 export interface CatalogItem {
   id: string;
   name: string;
@@ -32,5 +34,8 @@ export interface Finding {
   classification_id?: string;
   status_id?: string;
   user_id?: string;
+
+  // Acciones correctivas asociadas
+  capas?: CAPA[];
 
 }

@@ -169,7 +169,7 @@ export default function FindingTable({
               color="error"
               onClick={() => {
                 if (
-                  confirm("¿Desea eliminar este hallazgo?")
+                  confirm("¿Desea eliminar esta no conformidad?")
                 ) {
                   console.log("Eliminar", params.row.id);
                 }

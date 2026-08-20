@@ -56,15 +56,15 @@ export default function FindingsPage() {
       await createFinding(payload);
       setSnack({
         open: true,
-        message: "Hallazgo creado correctamente.",
+        message: "No Conformidad creada correctamente.",
         severity: "success",
       });
       setOpenModal(false);
       refetch();
     } catch (err: any) {
-      console.error("Error creando hallazgo", err);
+      console.error("Error creando no conformidad", err);
       const detail = err?.response?.data?.detail;
-      let message = err?.message || "Error al crear el hallazgo.";
+      let message = err?.message || "Error al crear la no conformidad.";
       if (typeof detail === "string") {
         message = detail;
       } else if (Array.isArray(detail)) {
@@ -127,7 +127,7 @@ export default function FindingsPage() {
         sx={{ mb: 3, width: "100%" }}
       >
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          Hallazgos
+          No Conformidades
         </Typography>
 
         <Stack direction="row" gap={1} flexWrap="wrap">
@@ -164,7 +164,7 @@ export default function FindingsPage() {
             onClick={handleOpenModal}
             sx={{ textTransform: "none" }}
           >
-            Nuevo Hallazgo
+            Nueva No Conformidad
           </Button>
 
         </Stack>

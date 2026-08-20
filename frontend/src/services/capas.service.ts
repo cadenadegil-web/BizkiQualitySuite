@@ -36,3 +36,8 @@ export async function updateCapa(
 export async function deleteCapa(id: string) {
   return api.delete(`/capas/${id}`);
 }
+
+export async function getCapasByFinding(findingId: string) {
+  const response = await api.get(`/capas/finding/${findingId}`);
+  return response.data;
+}

@@ -38,14 +38,14 @@ export default function NewCapaPage() {
       });
       navigate("/capas");
     } catch (err: any) {
-      setSnack({ open: true, message: err?.response?.data?.detail || err?.message || "Error creando CAPA.", severity: "error" });
+      setSnack({ open: true, message: err?.response?.data?.detail || err?.message || "Error creando el Plan de Acción.", severity: "error" });
     }
   }
 
   return (
     <>
       <Box sx={{ mb: 3 }}>
-        <h2>Crear CAPA</h2>
+        <h2>Crear Plan de Acción Correctiva (CAP)</h2>
       </Box>
 
       {loading ? (
@@ -58,7 +58,7 @@ export default function NewCapaPage() {
         <Box sx={{ display: "grid", gap: 3 }}>
           {finding && (
             <Alert severity="info">
-              Creando CAPA para el hallazgo: <strong>{finding.code || finding.id}</strong> — {finding.description?.slice(0, 120)}
+              Creando Plan de Acción Correctiva para la no conformidad: <strong>{finding.code || finding.id}</strong> — {finding.description?.slice(0, 120)}
             </Alert>
           )}
 

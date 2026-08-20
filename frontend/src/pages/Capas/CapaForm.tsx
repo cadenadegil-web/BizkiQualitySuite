@@ -57,7 +57,7 @@ export default function CapaForm({ defaultValues, onSubmit }: Props) {
     <Card>
       <CardContent>
         <Typography variant="h5" sx={{ mb: 2 }}>
-          Datos de CAPA
+          Datos del Plan de Acción Correctiva (CAP)
         </Typography>
 
         <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ display: "grid", gap: 2 }}>
@@ -130,7 +130,7 @@ export default function CapaForm({ defaultValues, onSubmit }: Props) {
           />
 
           <Button type="submit" variant="contained">
-            Guardar CAPA
+            Guardar Plan de Acción
           </Button>
         </Box>
       </CardContent>

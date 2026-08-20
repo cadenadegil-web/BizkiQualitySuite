@@ -32,3 +32,28 @@ export async function uploadEvidence(
 
   return response.data;
 }
+
+export async function uploadCapaEvidence(
+  capaId: string,
+  file: File,
+) {
+  const form = new FormData();
+  form.append("file", file);
+
+  const response = await api.post(
+    `/evidences/upload/capa/${capaId}`,
+    form,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );
+
+  return response.data;
+}
+
+export async function getEvidencesByCapa(capaId: string) {
+  const response = await api.get(`/evidences/capa/${capaId}`);
+  return response.data;
+}
