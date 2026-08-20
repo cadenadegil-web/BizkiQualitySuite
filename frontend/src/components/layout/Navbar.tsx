@@ -31,12 +31,12 @@ const menu = [
     path: "/dashboard",
   },
   {
-    text: "Hallazgos",
+    text: "No Conformidades",
     icon: <FactCheck />,
     path: "/findings",
   },
   {
-    text: "CAPA",
+    text: "Plan de Acción Correctiva (CAP)",
     icon: <AssignmentTurnedIn />,
     path: "/capas",
   },
