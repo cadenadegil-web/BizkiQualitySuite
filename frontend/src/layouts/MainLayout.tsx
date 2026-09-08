@@ -6,6 +6,7 @@ import {
   People,
   Settings,
   Assignment as AssignmentIcon,
+  Logout as LogoutIcon,
 } from "@mui/icons-material";
 
 import {
@@ -18,13 +19,22 @@ import {
   Toolbar,
   Typography,
   IconButton,
+  Avatar,
+  Chip,
+  Tooltip,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 
 import { Drawer } from "@mui/material";
 import { Menu as MenuIcon, MenuOpen as MenuOpenIcon, Home as HomeIcon } from "@mui/icons-material";
 import { useState, useEffect } from "react";
 
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
 const drawerWidth = 260;
@@ -71,7 +81,9 @@ const baseMenu = [
 
 export default function MainLayout({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
-  const { role } = useAuth();
+  const navigate = useNavigate();
+  const { role, username, logout } = useAuth();
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try {
       const v = localStorage.getItem("bqs.drawer.collapsed");
@@ -86,6 +98,7 @@ export default function MainLayout({ children }: { children?: React.ReactNode })
       localStorage.setItem("bqs.drawer.collapsed", collapsed ? "1" : "0");
     } catch {}
   }, [collapsed]);
+
   const menu = baseMenu.filter((item) => {
     if (item.adminOnly) {
       return ["admin", "administrador"].some(
@@ -96,6 +109,12 @@ export default function MainLayout({ children }: { children?: React.ReactNode })
 
     return true;
   });
+
+  const handleLogout = () => {
+    setConfirmLogoutOpen(false);
+    logout();
+    navigate("/");
+  };
 
   return (
     <>
@@ -109,6 +128,9 @@ export default function MainLayout({ children }: { children?: React.ReactNode })
             width: collapsed ? collapsedWidth : drawerWidth,
             boxSizing: "border-box",
             overflowX: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
             transition: (theme) =>
               theme.transitions.create("width", {
                 easing: theme.transitions.easing.sharp,
@@ -141,7 +163,7 @@ export default function MainLayout({ children }: { children?: React.ReactNode })
 
         <Divider />
 
-        <List>
+        <List sx={{ flexGrow: 1, overflowY: "auto", overflowX: "hidden" }}>
           {menu.map((item) => (
             <ListItemButton
               key={item.path}
@@ -158,6 +180,62 @@ export default function MainLayout({ children }: { children?: React.ReactNode })
             </ListItemButton>
           ))}
         </List>
+
+        <Divider />
+
+        {/* Sección de Usuario y Logout */}
+        <Box sx={{ p: collapsed ? 1 : 2, bgcolor: "action.hover", mt: "auto" }}>
+          {!collapsed ? (
+            <>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+                <Avatar sx={{ bgcolor: "primary.main", width: 38, height: 38, fontWeight: "bold", fontSize: 16 }}>
+                  {(username || "U").charAt(0).toUpperCase()}
+                </Avatar>
+                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                  <Typography variant="subtitle2" noWrap sx={{ fontWeight: 700 }}>
+                    {username || "Usuario"}
+                  </Typography>
+                  <Chip
+                    label={role || "Usuario"}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    sx={{ height: 20, fontSize: "0.7rem", fontWeight: 600 }}
+                  />
+                </Box>
+              </Box>
+              <Button
+                variant="outlined"
+                color="error"
+                fullWidth
+                size="small"
+                startIcon={<LogoutIcon />}
+                onClick={() => setConfirmLogoutOpen(true)}
+                sx={{ textTransform: "none", fontWeight: 600, borderRadius: 1.5 }}
+              >
+                Cerrar sesión
+              </Button>
+            </>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+              <Tooltip title={`${username || "Usuario"} (${role || ""})`} placement="right">
+                <Avatar sx={{ bgcolor: "primary.main", width: 34, height: 34, fontWeight: "bold", fontSize: 14 }}>
+                  {(username || "U").charAt(0).toUpperCase()}
+                </Avatar>
+              </Tooltip>
+              <Tooltip title="Cerrar sesión" placement="right">
+                <IconButton
+                  color="error"
+                  size="small"
+                  onClick={() => setConfirmLogoutOpen(true)}
+                  aria-label="Cerrar sesión"
+                >
+                  <LogoutIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
+        </Box>
       </Drawer>
 
       <Box
@@ -179,6 +257,34 @@ export default function MainLayout({ children }: { children?: React.ReactNode })
       >
         {children}
       </Box>
+
+      {/* Diálogo de Confirmación para Cerrar Sesión */}
+      <Dialog
+        open={confirmLogoutOpen}
+        onClose={() => setConfirmLogoutOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700 }}>Cerrar sesión</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Estás seguro de que deseas cerrar la sesión de <strong>{username || "tu cuenta"}</strong>? Tendrás que iniciar sesión nuevamente para acceder al sistema.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setConfirmLogoutOpen(false)} color="inherit">
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleLogout}
+            variant="contained"
+            color="error"
+            startIcon={<LogoutIcon />}
+          >
+            Cerrar sesión
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

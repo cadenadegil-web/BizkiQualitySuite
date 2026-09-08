@@ -13,6 +13,7 @@ import {
 interface AuthContextData {
   token: string | null;
   role: string | null;
+  username: string | null;
   authenticated: boolean;
   loading: boolean;
 
@@ -40,6 +41,9 @@ export function AuthProvider({
   const [role, setRole] =
     useState<string | null>(null);
 
+  const [username, setUsername] =
+    useState<string | null>(null);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -51,48 +55,53 @@ export function AuthProvider({
       setToken(storedToken);
 
       try {
-      const payload = JSON.parse(
-        atob(storedToken.split(".")[1])
-      );
-      setRole(payload.role ?? null);
-    } catch {
-      setRole(null);
+        const payload = JSON.parse(
+          atob(storedToken.split(".")[1])
+        );
+        setRole(payload.role ?? null);
+        setUsername(payload.sub ?? null);
+      } catch {
+        setRole(null);
+        setUsername(null);
+      }
     }
-  }
 
-  setLoading(false);
-}, []);
+    setLoading(false);
+  }, []);
 
-async function signIn(
-  credentials: LoginRequest
-): Promise<boolean> {
-  try {
-    const response = await login(credentials);
-
-    localStorage.setItem("token", response.access_token);
-    setToken(response.access_token);
-
+  async function signIn(
+    credentials: LoginRequest
+  ): Promise<boolean> {
     try {
-      const payload = JSON.parse(
-        atob(response.access_token.split(".")[1])
-      );
-      setRole(payload.role ?? null);
-    } catch {
-      setRole(null);
-    }
+      const response = await login(credentials);
 
-    return true;
-  } catch (error: any) {
-    console.error("ERROR DE LOGIN", error);
-    return false;
+      localStorage.setItem("token", response.access_token);
+      setToken(response.access_token);
+
+      try {
+        const payload = JSON.parse(
+          atob(response.access_token.split(".")[1])
+        );
+        setRole(payload.role ?? null);
+        setUsername(payload.sub ?? null);
+      } catch {
+        setRole(null);
+        setUsername(null);
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error("ERROR DE LOGIN", error);
+      return false;
+    }
   }
-}
 
   function logout() {
     localStorage.removeItem("token");
 
     setToken(null);
     setRole(null);
+    setUsername(null);
   }
 
   return (
@@ -100,6 +109,7 @@ async function signIn(
       value={{
         token,
         role,
+        username,
         authenticated: token !== null,
         loading,
         signIn,
@@ -109,5 +119,4 @@ async function signIn(
       {children}
     </AuthContext.Provider>
   );
-
 }
