@@ -107,6 +107,11 @@ def update_audit(db: Session, audit: Audit, data: AuditUpdate) -> Audit:
             )
             db.add(item)
 
+        if audit.status == "COMPLETADA":
+            conformes = sum(1 for it in data.items if it.result == "CONFORME")
+            total = len(data.items)
+            audit.score = round((conformes / total) * 100, 1) if total > 0 else 0.0
+
     db.commit()
     db.refresh(audit)
     return audit

@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
-  IconButton, LinearProgress, Stack, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Typography, Paper,
+  Dialog, DialogActions, DialogContent, DialogTitle,
+  IconButton, LinearProgress, Paper, Snackbar, Stack, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -11,9 +12,11 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CancelIcon from '@mui/icons-material/Cancel';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
 
 import { useAudit } from '../../hooks/useAudits';
-import { completeAudit, downloadAuditPDF } from '../../services/audits.service';
+import { completeAudit, downloadAuditPDF, updateAudit } from '../../services/audits.service';
+import { AuditItem } from '../../types/audit';
 import { useState } from 'react';
 
 const RESULT_CONFIG: Record<string, { label: string; color: 'success' | 'error' | 'warning' | 'default'; icon: React.ReactNode }> = {
@@ -22,12 +25,29 @@ const RESULT_CONFIG: Record<string, { label: string; color: 'success' | 'error' 
   OBSERVACION: { label: 'Observación', color: 'warning', icon: <WarningIcon fontSize="small" /> },
 };
 
+const RESULT_OPTIONS: { value: 'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null; label: string; color: 'success' | 'error' | 'warning' | 'default'; icon: React.ReactNode }[] = [
+  { value: 'CONFORME', label: 'Conforme', color: 'success', icon: <CheckCircleIcon fontSize="small" /> },
+  { value: 'NO_CONFORME', label: 'No Conforme', color: 'error', icon: <CancelIcon fontSize="small" /> },
+  { value: 'OBSERVACION', label: 'Observación', color: 'warning', icon: <WarningIcon fontSize="small" /> },
+  { value: null, label: 'Pendiente', color: 'default', icon: <HourglassEmptyIcon fontSize="small" /> },
+];
+
 export default function AuditDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: audit, isLoading, error, refetch } = useAudit(id!);
   const [completing, setCompleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  const [editingItem, setEditingItem] = useState<AuditItem | null>(null);
+  const [editResult, setEditResult] = useState<'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null>(null);
+  const [editComment, setEditComment] = useState('');
+  const [savingItem, setSavingItem] = useState(false);
+  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
   if (error || !audit) return <Alert severity="error">No se encontró la auditoría.</Alert>;
@@ -47,6 +67,54 @@ export default function AuditDetailPage() {
   const noConformes = audit.items.filter(it => it.result === 'NO_CONFORME').length;
   const observaciones = audit.items.filter(it => it.result === 'OBSERVACION').length;
   const total = audit.items.length;
+
+  const handleOpenEdit = (item: AuditItem) => {
+    setEditingItem(item);
+    setEditResult(item.result);
+    setEditComment(item.comment || '');
+  };
+
+  const handleSaveItem = async () => {
+    if (!editingItem || !audit) return;
+    setSavingItem(true);
+    try {
+      const updatedItems = audit.items.map(it => {
+        if (it.id === editingItem.id) {
+          return {
+            order: it.order,
+            norm: it.norm,
+            control_point: it.control_point,
+            result: editResult,
+            comment: editComment.trim() || null,
+          };
+        }
+        return {
+          order: it.order,
+          norm: it.norm,
+          control_point: it.control_point,
+          result: it.result,
+          comment: it.comment,
+        };
+      });
+
+      await updateAudit(audit.id, {
+        audit_date: audit.audit_date,
+        shift: audit.shift,
+        auditor: audit.auditor,
+        observations: audit.observations || undefined,
+        area_id: audit.area_id,
+        items: updatedItems,
+      });
+
+      setSnack({ open: true, message: 'Punto de control actualizado correctamente', severity: 'success' });
+      setEditingItem(null);
+      refetch();
+    } catch {
+      setSnack({ open: true, message: 'Error al actualizar el punto', severity: 'error' });
+    } finally {
+      setSavingItem(false);
+    }
+  };
 
   return (
     <Box sx={{ width: '100%', maxWidth: 1100, mx: 'auto' }}>
@@ -147,12 +215,17 @@ export default function AuditDetailPage() {
       {/* Checklist table */}
       <Card sx={{ borderRadius: 2 }} elevation={2}>
         <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#1976d2' }}>Checklist de Control</Typography>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>Checklist de Control</Typography>
+            <Typography variant="body2" color="text.secondary">
+              💡 Haz clic sobre cualquier fila o en el botón de lápiz para editar el resultado o comentario directamente.
+            </Typography>
+          </Box>
           <TableContainer component={Paper} elevation={0}>
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ backgroundColor: '#1976d2' }}>
-                  {['#', 'Norma', 'Punto de Control', 'Resultado', 'Comentario'].map(h => (
+                  {['#', 'Norma', 'Punto de Control', 'Resultado', 'Comentario', 'Acción'].map(h => (
                     <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
                   ))}
                 </TableRow>
@@ -163,28 +236,54 @@ export default function AuditDetailPage() {
                   return (
                     <TableRow
                       key={item.id}
+                      onClick={() => handleOpenEdit(item)}
                       sx={{
+                        cursor: 'pointer',
                         backgroundColor: item.result === 'NO_CONFORME' ? '#fff5f5' : item.result === 'CONFORME' ? '#f5fff5' : 'inherit',
-                        '&:hover': { backgroundColor: '#f8f8f8' },
+                        '&:hover': { backgroundColor: '#e8f4fd !important' },
+                        transition: 'background-color 0.15s ease',
                       }}
                     >
                       <TableCell sx={{ fontWeight: 700, color: '#1976d2', width: 40 }}>{idx + 1}</TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 12, color: '#555' }}>{item.norm}</TableCell>
-                      <TableCell>{item.control_point}</TableCell>
+                      <TableCell sx={{ fontWeight: 500 }}>{item.control_point}</TableCell>
                       <TableCell>
-                        {cfg ? (
-                          <Chip
-                            size="small"
-                            icon={cfg.icon as React.ReactElement}
-                            label={cfg.label}
-                            color={cfg.color as any}
-                            variant="filled"
-                          />
-                        ) : (
-                          <Chip size="small" icon={<HourglassEmptyIcon fontSize="small" />} label="Pendiente" variant="outlined" />
-                        )}
+                        <Tooltip title="Haz clic para cambiar el resultado">
+                          {cfg ? (
+                            <Chip
+                              size="small"
+                              icon={cfg.icon as React.ReactElement}
+                              label={cfg.label}
+                              color={cfg.color as any}
+                              variant="filled"
+                              sx={{ fontWeight: 600, cursor: 'pointer' }}
+                            />
+                          ) : (
+                            <Chip
+                              size="small"
+                              icon={<HourglassEmptyIcon fontSize="small" />}
+                              label="Pendiente"
+                              variant="outlined"
+                              sx={{ fontWeight: 600, cursor: 'pointer' }}
+                            />
+                          )}
+                        </Tooltip>
                       </TableCell>
                       <TableCell sx={{ fontSize: 12, color: '#666' }}>{item.comment ?? '—'}</TableCell>
+                      <TableCell sx={{ width: 60 }}>
+                        <Tooltip title="Editar este punto">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEdit(item);
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -193,6 +292,86 @@ export default function AuditDetailPage() {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* Dialog para edición directa del punto de control */}
+      <Dialog
+        open={Boolean(editingItem)}
+        onClose={() => !savingItem && setEditingItem(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, color: '#1976d2' }}>
+            Editar Punto de Control
+          </Typography>
+          {editingItem && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              <strong>{editingItem.norm}:</strong> {editingItem.control_point}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ my: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+              Resultado:
+            </Typography>
+            <Stack direction="row" gap={1} flexWrap="wrap" sx={{ mb: 3 }}>
+              {RESULT_OPTIONS.map((opt) => (
+                <Button
+                  key={opt.label}
+                  variant={editResult === opt.value ? 'contained' : 'outlined'}
+                  color={opt.color === 'default' ? 'inherit' : opt.color}
+                  startIcon={opt.icon}
+                  onClick={() => setEditResult(opt.value)}
+                  sx={{
+                    textTransform: 'none',
+                    borderRadius: 2,
+                    fontWeight: 600,
+                    borderWidth: editResult === opt.value ? 2 : 1,
+                  }}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </Stack>
+
+            <TextField
+              fullWidth
+              label="Comentario u Observación"
+              placeholder="Escribe detalles del hallazgo o notas..."
+              value={editComment}
+              onChange={(e) => setEditComment(e.target.value)}
+              multiline
+              rows={3}
+              helperText={editResult === 'NO_CONFORME' ? 'Recomendado: Explica el motivo de la no conformidad' : ''}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setEditingItem(null)} disabled={savingItem} sx={{ textTransform: 'none' }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveItem}
+            disabled={savingItem}
+            startIcon={<SaveIcon />}
+            sx={{ textTransform: 'none', minWidth: 140 }}
+          >
+            {savingItem ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3500}
+        onClose={() => setSnack(s => ({ ...s, open: false }))}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))} sx={{ width: '100%' }}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
