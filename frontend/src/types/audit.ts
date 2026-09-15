@@ -41,3 +41,13 @@ export interface AuditCreate {
   area_id: string;
   items: AuditItemCreate[];
 }
+
+export interface AuditUpdate {
+  audit_date?: string;
+  shift?: string;
+  auditor?: string;
+  observations?: string;
+  area_id?: string;
+  items?: AuditItemCreate[];
+}
+

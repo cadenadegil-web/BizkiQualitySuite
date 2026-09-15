@@ -140,6 +140,15 @@ export default function AppRoutes() {
       />
 
       <Route
+        path="/audits/edit/:id"
+        element={
+          <ProtectedRoute>
+            <AuditFormPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/audits/:id"
         element={
           <ProtectedRoute>

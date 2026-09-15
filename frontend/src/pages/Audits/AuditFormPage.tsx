@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Fab,
+  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Fab,
   FormControl, IconButton, InputLabel, MenuItem, Select,
   Snackbar, Stack, TextField, Tooltip, Typography, Autocomplete,
 } from '@mui/material';
@@ -13,7 +13,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
 
-import { createAudit } from '../../services/audits.service';
+import { createAudit, getAudit, updateAudit } from '../../services/audits.service';
 import { getCatalogItems } from '../../services/catalogs.service';
 import { AuditItemCreate } from '../../types/audit';
 
@@ -26,7 +26,12 @@ interface FormItem extends AuditItemCreate {
 let keyCounter = 0;
 
 export default function AuditFormPage() {
+  const { id } = useParams<{ id: string }>();
+  const isEditing = Boolean(id);
   const navigate = useNavigate();
+
+  const [loadingAudit, setLoadingAudit] = useState(isEditing);
+  const [auditCode, setAuditCode] = useState('');
   const [areas, setAreas] = useState<{ id: string; name: string }[]>([]);
   const [areaId, setAreaId] = useState('');
   const [shift, setShift] = useState('Mañana');
@@ -48,18 +53,49 @@ export default function AuditFormPage() {
       setNormsCatalog(catalog);
       setSuggestedNorms(catalog.map(n => n.norm));
       
-      // Auto-load 10 default items if the form is empty
-      setItems(prev => {
-        if (prev.length === 0 && catalog.length > 0) {
-          keyCounter = 10;
-          return catalog.slice(0, 10).map((n, i) => ({
-            _key: i, order: i + 1, norm: n.norm, control_point: n.control_point, result: null, comment: null
-          }));
-        }
-        return prev;
-      });
+      // Auto-load 10 default items if the form is empty and NOT editing
+      if (!isEditing) {
+        setItems(prev => {
+          if (prev.length === 0 && catalog.length > 0) {
+            keyCounter = 10;
+            return catalog.slice(0, 10).map((n, i) => ({
+              _key: i, order: i + 1, norm: n.norm, control_point: n.control_point, result: null, comment: null
+            }));
+          }
+          return prev;
+        });
+      }
     }).catch(() => {});
-  }, []);
+
+    if (isEditing && id) {
+      getAudit(id)
+        .then(audit => {
+          setAuditCode(audit.code);
+          setAreaId(audit.area_id);
+          setShift(audit.shift);
+          setAuditor(audit.auditor);
+          setAuditDate(audit.audit_date);
+          setObservations(audit.observations || '');
+          if (audit.items && audit.items.length > 0) {
+            keyCounter = audit.items.length + 10;
+            setItems(audit.items.map((it, idx) => ({
+              _key: idx + 1,
+              order: it.order || idx + 1,
+              norm: it.norm,
+              control_point: it.control_point,
+              result: it.result,
+              comment: it.comment,
+            })));
+          }
+        })
+        .catch(() => {
+          setSnack({ open: true, message: 'No se pudo cargar la auditoría.', severity: 'error' });
+        })
+        .finally(() => {
+          setLoadingAudit(false);
+        });
+    }
+  }, [id, isEditing]);
 
   const setItemResult = (key: number, result: ResultType) => {
     setItems(prev => prev.map(it => it._key === key ? { ...it, result } : it));
@@ -101,19 +137,29 @@ export default function AuditFormPage() {
     if (!areaId) { setSnack({ open: true, message: 'Selecciona un área.', severity: 'error' }); return; }
     if (!auditor.trim()) { setSnack({ open: true, message: 'Ingresa el nombre del auditor.', severity: 'error' }); return; }
     setSubmitting(true);
+    const payload = {
+      audit_date: auditDate,
+      shift,
+      auditor: auditor.trim(),
+      observations: observations.trim() || undefined,
+      area_id: areaId,
+      items: items.map(({ _key, ...rest }) => rest),
+    };
     try {
-      const audit = await createAudit({
-        audit_date: auditDate,
-        shift,
-        auditor: auditor.trim(),
-        observations: observations.trim() || undefined,
-        area_id: areaId,
-        items: items.map(({ _key, ...rest }) => rest),
-      });
-      navigate(`/audits/${audit.id}`);
+      if (isEditing && id) {
+        const audit = await updateAudit(id, payload);
+        navigate(`/audits/${audit.id}`);
+      } else {
+        const audit = await createAudit(payload);
+        navigate(`/audits/${audit.id}`);
+      }
     } catch (e: any) {
       const detail = e?.response?.data?.detail;
-      setSnack({ open: true, message: typeof detail === 'string' ? detail : 'Error al crear la auditoría.', severity: 'error' });
+      setSnack({
+        open: true,
+        message: typeof detail === 'string' ? detail : `Error al ${isEditing ? 'actualizar' : 'crear'} la auditoría.`,
+        severity: 'error',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -129,14 +175,26 @@ export default function AuditFormPage() {
   const noConformes = items.filter(it => it.result === 'NO_CONFORME').length;
   const pendientes = items.filter(it => it.result === null).length;
 
+  if (loadingAudit) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ width: '100%', maxWidth: 1100, mx: 'auto' }}>
       {/* Header */}
       <Stack direction="row" alignItems="center" gap={2} sx={{ mb: 3 }}>
-        <IconButton onClick={() => navigate('/audits')}><ArrowBackIcon /></IconButton>
+        <IconButton onClick={() => navigate(isEditing ? `/audits/${id}` : '/audits')}><ArrowBackIcon /></IconButton>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>Nueva Auditoría</Typography>
-          <Typography variant="body2" color="text.secondary">Completa el checklist BPM/ISO para registrar la auditoría</Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            {isEditing ? `Editar Auditoría ${auditCode ? `(${auditCode})` : ''}` : 'Nueva Auditoría'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {isEditing ? 'Modifica los puntos de control, resultados o comentarios' : 'Completa el checklist BPM/ISO para registrar la auditoría'}
+          </Typography>
         </Box>
         <Button
           variant="contained"
@@ -145,7 +203,7 @@ export default function AuditFormPage() {
           disabled={submitting}
           sx={{ textTransform: 'none', minWidth: 160 }}
         >
-          {submitting ? 'Guardando...' : 'Guardar Auditoría'}
+          {submitting ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Guardar Auditoría')}
         </Button>
       </Stack>
 
@@ -317,7 +375,7 @@ export default function AuditFormPage() {
           disabled={submitting}
         >
           <SaveIcon sx={{ mr: 1 }} />
-          {submitting ? 'Guardando...' : 'Guardar'}
+          {submitting ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Guardar')}
         </Fab>
       </Box>
 

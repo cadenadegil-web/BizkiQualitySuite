@@ -10,6 +10,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import CancelIcon from '@mui/icons-material/Cancel';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import EditIcon from '@mui/icons-material/Edit';
 
 import { useAudit } from '../../hooks/useAudits';
 import { completeAudit, downloadAuditPDF } from '../../services/audits.service';
@@ -59,6 +60,15 @@ export default function AuditDetailPage() {
           </Typography>
         </Box>
         <Stack direction="row" gap={1}>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<EditIcon />}
+            onClick={() => navigate(`/audits/edit/${audit.id}`)}
+            sx={{ textTransform: 'none' }}
+          >
+            Editar
+          </Button>
           {audit.status === 'PENDIENTE' && (
             <Button
               variant="contained" color="success"

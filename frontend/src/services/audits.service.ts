@@ -16,6 +16,11 @@ export async function createAudit(data: AuditCreate): Promise<Audit> {
   return res.data;
 }
 
+export async function updateAudit(id: string, data: AuditCreate | Partial<AuditCreate>): Promise<Audit> {
+  const res = await api.put(`/audits/${id}`, data);
+  return res.data;
+}
+
 export async function completeAudit(id: string): Promise<Audit> {
   const res = await api.post(`/audits/${id}/complete`);
   return res.data;
