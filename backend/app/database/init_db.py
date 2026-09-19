@@ -75,9 +75,24 @@ INITIAL_NORMS = [
 
 def create_database() -> None:
     """
-    Crea todas las tablas registradas en Base.metadata.
+    Crea todas las tablas registradas en Base.metadata y aplica
+    migraciones seguras de columnas nuevas.
     """
     Base.metadata.create_all(bind=engine)
+
+    # Migraciones seguras para columnas añadidas
+    from sqlalchemy import text
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE areas ADD COLUMN IF NOT EXISTS plant VARCHAR(100);"))
+            conn.execute(text("UPDATE areas SET plant = 'Bizki' WHERE plant IS NULL;"))
+            conn.execute(text("ALTER TABLE areas DROP CONSTRAINT IF EXISTS areas_name_key;"))
+            conn.execute(text("ALTER TABLE areas DROP CONSTRAINT IF EXISTS uq_areas_name_plant;"))
+            conn.execute(text("ALTER TABLE areas ADD CONSTRAINT uq_areas_name_plant UNIQUE (name, plant);"))
+            conn.execute(text("ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_id UUID REFERENCES audits(id) ON DELETE SET NULL;"))
+            conn.execute(text("ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_item_id UUID REFERENCES audit_items(id) ON DELETE SET NULL;"))
+    except Exception as e:
+        print(f"Aviso durante migración de esquema: {e}")
 
     # Seed Norms
     db = SessionLocal()
