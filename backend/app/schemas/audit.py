@@ -28,9 +28,17 @@ class AuditItemUpdate(BaseModel):
     comment: Optional[str] = None
 
 
+class FindingSimple(BaseModel):
+    id: UUID
+    code: str
+    active: bool
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AuditItemResponse(AuditItemBase):
     id: UUID
     audit_id: UUID
+    finding: Optional[FindingSimple] = None
     model_config = ConfigDict(from_attributes=True)
 
 

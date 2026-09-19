@@ -23,6 +23,8 @@ class FindingBase(BaseModel):
     classification_id: UUID | None = None
     status_id: UUID | None = None
     user_id: UUID | None = None
+    audit_id: UUID | None = None
+    audit_item_id: UUID | None = None
 
     active: bool = True
     created_at: datetime | None = None
@@ -49,9 +51,18 @@ class FindingUpdate(BaseModel):
     classification_id: UUID | None = None
     status_id: UUID | None = None
     user_id: UUID | None = None
+    audit_id: UUID | None = None
+    audit_item_id: UUID | None = None
 
     active: bool | None = None
     created_at: datetime | None = None
+
+
+class AuditSimple(BaseModel):
+    id: UUID
+    code: str
+    shift: str
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FindingResponse(FindingBase):
@@ -69,6 +80,7 @@ class FindingResponse(FindingBase):
     area: AreaResponse | None = None
     classification: ClassificationResponse | None = None
     status: StatusResponse | None = None
+    audit: AuditSimple | None = None
 
     model_config = ConfigDict(
         from_attributes=True

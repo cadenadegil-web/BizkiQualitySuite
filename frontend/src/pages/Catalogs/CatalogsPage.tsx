@@ -74,6 +74,12 @@ function CustomTabPanel(props: TabPanelProps) {
   );
 }
 
+const DEFAULT_PLANTS = [
+  "Molinos del Higuamo",
+  "Bizki",
+  "Caribbean Cookies Company",
+];
+
 export default function CatalogsPage() {
   const [tabValue, setTabValue] = useState(0);
   const [items, setItems] = useState<CatalogItem[]>([]);
@@ -86,6 +92,7 @@ export default function CatalogsPage() {
 
   // Form states
   const [nameInput, setNameInput] = useState("");
+  const [plantInput, setPlantInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
   const [activeInput, setActiveInput] = useState(true);
@@ -100,6 +107,7 @@ export default function CatalogsPage() {
 
   // Column filter states
   const [filterName, setFilterName] = useState("");
+  const [filterPlant, setFilterPlant] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterDescription, setFilterDescription] = useState("");
   const [filterStatus, setFilterStatus] = useState(""); // "", "active", "inactive"
@@ -144,8 +152,16 @@ export default function CatalogsPage() {
     }
   }
 
+  const availablePlants = Array.from(
+    new Set([
+      ...DEFAULT_PLANTS,
+      ...items.map((i) => i.plant).filter((p): p is string => Boolean(p)),
+    ])
+  );
+
   useEffect(() => {
     setFilterName("");
+    setFilterPlant("");
     setFilterCategory("");
     setFilterDescription("");
     setFilterStatus("");
@@ -159,6 +175,7 @@ export default function CatalogsPage() {
   const handleOpenCreate = () => {
     setEditingItem(null);
     setNameInput("");
+    setPlantInput("");
     setDescriptionInput("");
     setCategoryInput("");
     setActiveInput(true);
@@ -168,6 +185,7 @@ export default function CatalogsPage() {
   const handleOpenEdit = (item: CatalogItem) => {
     setEditingItem(item);
     setNameInput(item.name);
+    setPlantInput(item.plant || "");
     setDescriptionInput(item.description || "");
     setCategoryInput(item.category || "");
     setActiveInput(item.active);
@@ -178,6 +196,7 @@ export default function CatalogsPage() {
     setOpenModal(false);
     setEditingItem(null);
     setNameInput("");
+    setPlantInput("");
     setDescriptionInput("");
     setCategoryInput("");
     setActiveInput(true);
@@ -199,6 +218,7 @@ export default function CatalogsPage() {
       if (editingItem) {
         await updateCatalogItem(currentType, editingItem.id, {
           name: nameInput.trim(),
+          plant: currentType === "areas" ? (plantInput || null) : undefined,
           description: currentType === "norms" ? descriptionInput.trim() : undefined,
           category: currentType === "norms" ? categoryInput.trim() : undefined,
           active: activeInput,
@@ -211,6 +231,7 @@ export default function CatalogsPage() {
       } else {
         await createCatalogItem(currentType, {
           name: nameInput.trim(),
+          plant: currentType === "areas" ? (plantInput || undefined) : undefined,
           description: currentType === "norms" ? descriptionInput.trim() : undefined,
           category: currentType === "norms" ? categoryInput.trim() : undefined,
           active: activeInput,
@@ -256,6 +277,9 @@ export default function CatalogsPage() {
 
   const filteredItems = items.filter(item => {
     const matchesName = item.name.toLowerCase().includes(filterName.toLowerCase());
+    const matchesPlant = currentType === "areas"
+      ? (!filterPlant || (item.plant || "").toLowerCase() === filterPlant.toLowerCase())
+      : true;
     const matchesCategory = currentType === "norms"
       ? (item.category || "").toLowerCase().includes(filterCategory.toLowerCase())
       : true;
@@ -267,7 +291,7 @@ export default function CatalogsPage() {
     if (filterStatus === "active") matchesStatus = item.active === true;
     if (filterStatus === "inactive") matchesStatus = item.active === false;
 
-    return matchesName && matchesCategory && matchesDescription && matchesStatus;
+    return matchesName && matchesPlant && matchesCategory && matchesDescription && matchesStatus;
   });
 
   const handleExportPDF = () => {
@@ -378,6 +402,26 @@ export default function CatalogsPage() {
                 autoFocus
               />
 
+              {currentType === "areas" && (
+                <TextField
+                  select
+                  label="Planta"
+                  fullWidth
+                  value={plantInput}
+                  onChange={(e) => setPlantInput(e.target.value)}
+                  disabled={submitting}
+                  SelectProps={{ native: true }}
+                  helperText="Selecciona la planta a la que pertenece esta área"
+                >
+                  <option value="">-- Seleccionar Planta --</option>
+                  {availablePlants.map((plant) => (
+                    <option key={plant} value={plant}>
+                      {plant}
+                    </option>
+                  ))}
+                </TextField>
+              )}
+
               {currentType === "norms" && (
                 <>
                   <TextField
@@ -477,6 +521,7 @@ export default function CatalogsPage() {
           <TableHead sx={{ backgroundColor: "#1976d2" }}>
             <TableRow>
               <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Nombre</TableCell>
+              {currentType === "areas" && <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Planta</TableCell>}
               {currentType === "norms" && <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Categoría</TableCell>}
               {currentType === "norms" && <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Punto de Control</TableCell>}
               <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Estado</TableCell>
@@ -496,6 +541,27 @@ export default function CatalogsPage() {
                   fullWidth
                 />
               </TableCell>
+              {currentType === "areas" && (
+                <TableCell sx={{ p: 1 }}>
+                  <TextField
+                    select
+                    size="small"
+                    variant="outlined"
+                    value={filterPlant}
+                    onChange={(e) => setFilterPlant(e.target.value)}
+                    SelectProps={{ native: true }}
+                    sx={{ backgroundColor: "#fff", borderRadius: 1, minWidth: 150 }}
+                    fullWidth
+                  >
+                    <option value="">Todas las plantas</option>
+                    {availablePlants.map((plant) => (
+                      <option key={plant} value={plant}>
+                        {plant}
+                      </option>
+                    ))}
+                  </TextField>
+                </TableCell>
+              )}
               {currentType === "norms" && (
                 <TableCell sx={{ p: 1 }}>
                   <TextField
@@ -545,6 +611,29 @@ export default function CatalogsPage() {
             {filteredItems.map((item) => (
               <TableRow key={item.id} hover>
                 <TableCell sx={{ fontWeight: 500 }}>{item.name}</TableCell>
+                {currentType === "areas" && (
+                  <TableCell>
+                    {item.plant ? (
+                      <Chip
+                        label={item.plant}
+                        size="small"
+                        color={
+                          item.plant === "Bizki"
+                            ? "primary"
+                            : item.plant.includes("Higuam") || item.plant.includes("Higuan")
+                            ? "secondary"
+                            : "default"
+                        }
+                        variant="outlined"
+                        sx={{ fontWeight: 500 }}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        —
+                      </Typography>
+                    )}
+                  </TableCell>
+                )}
                 {currentType === "norms" && (
                   <TableCell>
                     {item.category || "-"}
@@ -589,7 +678,7 @@ export default function CatalogsPage() {
 
             {filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={currentType === "norms" ? 5 : 3} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                <TableCell colSpan={currentType === "norms" ? 5 : currentType === "areas" ? 4 : 3} align="center" sx={{ py: 4, color: "text.secondary" }}>
                   No existen registros en este catálogo.
                 </TableCell>
               </TableRow>

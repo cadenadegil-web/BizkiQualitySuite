@@ -13,6 +13,7 @@ from app.models.norm import Norm
 class CatalogItemSchema(BaseModel):
     id: UUID
     name: str
+    plant: str | None = None
     active: bool
 
     class Config:
@@ -21,11 +22,35 @@ class CatalogItemSchema(BaseModel):
 
 class CatalogItemCreateSchema(BaseModel):
     name: str
+    plant: str | None = None
     active: bool = True
 
 
 class CatalogItemUpdateSchema(BaseModel):
     name: str | None = None
+    plant: str | None = None
+    active: bool | None = None
+
+
+class AreaItemSchema(BaseModel):
+    id: UUID
+    name: str
+    plant: str | None = None
+    active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class AreaItemCreateSchema(BaseModel):
+    name: str
+    plant: str | None = None
+    active: bool = True
+
+
+class AreaItemUpdateSchema(BaseModel):
+    name: str | None = None
+    plant: str | None = None
     active: bool | None = None
 
 
@@ -63,31 +88,48 @@ router = APIRouter(
 # ÁREAS
 # =========================================================
 
-@router.get("/areas", response_model=list[CatalogItemSchema])
+@router.get("/areas", response_model=list[AreaItemSchema])
 def get_areas(db: Session = Depends(get_db)):
-    return db.query(Area).order_by(Area.name).all()
+    return db.query(Area).order_by(Area.plant, Area.name).all()
 
 
-@router.post("/areas", response_model=CatalogItemSchema)
-def create_area(item: CatalogItemCreateSchema, db: Session = Depends(get_db)):
-    if db.query(Area).filter(Area.name == item.name).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El área ya existe.")
-    new_area = Area(name=item.name, active=item.active)
+@router.post("/areas", response_model=AreaItemSchema)
+def create_area(item: AreaItemCreateSchema, db: Session = Depends(get_db)):
+    query = db.query(Area).filter(Area.name == item.name)
+    if item.plant:
+        query = query.filter(Area.plant == item.plant)
+    else:
+        query = query.filter(Area.plant.is_(None))
+    if query.first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El área ya existe para esta planta.")
+    new_area = Area(name=item.name, plant=item.plant, active=item.active)
     db.add(new_area)
     db.commit()
     db.refresh(new_area)
     return new_area
 
 
-@router.put("/areas/{area_id}", response_model=CatalogItemSchema)
-def update_area(area_id: UUID, item: CatalogItemUpdateSchema, db: Session = Depends(get_db)):
+@router.put("/areas/{area_id}", response_model=AreaItemSchema)
+def update_area(area_id: UUID, item: AreaItemUpdateSchema, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
     if not area:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Área no encontrada.")
-    if item.name and item.name != area.name:
-        if db.query(Area).filter(Area.name == item.name).first():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe un área con ese nombre.")
+    target_name = item.name if item.name is not None else area.name
+    target_plant = item.plant if item.plant is not None else area.plant
+
+    if target_name != area.name or target_plant != area.plant:
+        dup_query = db.query(Area).filter(Area.name == target_name, Area.id != area_id)
+        if target_plant:
+            dup_query = dup_query.filter(Area.plant == target_plant)
+        else:
+            dup_query = dup_query.filter(Area.plant.is_(None))
+        if dup_query.first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe un área con ese nombre para esta planta.")
+
+    if item.name is not None:
         area.name = item.name
+    if item.plant is not None:
+        area.plant = item.plant
     if item.active is not None:
         area.active = item.active
     db.commit()

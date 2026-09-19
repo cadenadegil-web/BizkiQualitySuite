@@ -16,14 +16,14 @@ def seed_database(db: Session):
 
         areas = [
 
-            Area(name="Pre-pesado"),
-            Area(name="Mezcla"),
-            Area(name="Depositadora"),
-            Area(name="Horno"),
-            Area(name="Enfriamiento"),
-            Area(name="Empaque"),
-            Area(name="Almacén"),
-            Area(name="Despacho"),
+            Area(name="Pre-pesado", plant="Bizki"),
+            Area(name="Mezcla", plant="Bizki"),
+            Area(name="Depositadora", plant="Bizki"),
+            Area(name="Horno", plant="Bizki"),
+            Area(name="Enfriamiento", plant="Bizki"),
+            Area(name="Empaque", plant="Bizki"),
+            Area(name="Almacén", plant="Bizki"),
+            Area(name="Despacho", plant="Bizki"),
 
         ]
 

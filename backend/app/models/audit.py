@@ -72,6 +72,7 @@ class AuditItem(Base):
     
     # Relation
     audit: Mapped["Audit"] = relationship("Audit", back_populates="items")
+    finding: Mapped["Finding | None"] = relationship("Finding", back_populates="audit_item", uselist=False, lazy="selectin")
 
     def __repr__(self) -> str:
         return f"<AuditItem(norm='{self.norm}', result='{self.result}')>"

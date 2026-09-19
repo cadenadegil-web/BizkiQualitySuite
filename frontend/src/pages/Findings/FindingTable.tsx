@@ -61,6 +61,31 @@ export default function FindingTable({
     },
 
     {
+      field: "audit",
+      headerName: "Auditoría",
+      flex: 1,
+      minWidth: 130,
+      renderCell: (params) => {
+        const audit = params.row.audit;
+        if (!audit) return "—";
+        return (
+          <Chip
+            label={audit.code}
+            color="info"
+            size="small"
+            variant="outlined"
+            clickable
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/audits/${audit.id}`);
+            }}
+            sx={{ fontWeight: 600 }}
+          />
+        );
+      },
+    },
+
+    {
       field: "finding_type",
       headerName: "Tipo",
       flex: 1,

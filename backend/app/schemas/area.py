@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 class AreaBase(BaseModel):
     name: str
+    plant: str | None = None
     active: bool = True
 
 
@@ -14,6 +15,7 @@ class AreaCreate(AreaBase):
 
 class AreaUpdate(BaseModel):
     name: str | None = None
+    plant: str | None = None
     active: bool | None = None
 
 

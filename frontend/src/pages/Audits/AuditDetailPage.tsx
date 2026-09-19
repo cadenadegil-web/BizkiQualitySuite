@@ -248,26 +248,44 @@ export default function AuditDetailPage() {
                       <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 12, color: '#555' }}>{item.norm}</TableCell>
                       <TableCell sx={{ fontWeight: 500 }}>{item.control_point}</TableCell>
                       <TableCell>
-                        <Tooltip title="Haz clic para cambiar el resultado">
-                          {cfg ? (
-                            <Chip
-                              size="small"
-                              icon={cfg.icon as React.ReactElement}
-                              label={cfg.label}
-                              color={cfg.color as any}
-                              variant="filled"
-                              sx={{ fontWeight: 600, cursor: 'pointer' }}
-                            />
-                          ) : (
-                            <Chip
-                              size="small"
-                              icon={<HourglassEmptyIcon fontSize="small" />}
-                              label="Pendiente"
-                              variant="outlined"
-                              sx={{ fontWeight: 600, cursor: 'pointer' }}
-                            />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Tooltip title="Haz clic para cambiar el resultado">
+                            {cfg ? (
+                              <Chip
+                                size="small"
+                                icon={cfg.icon as React.ReactElement}
+                                label={cfg.label}
+                                color={cfg.color as any}
+                                variant="filled"
+                                sx={{ fontWeight: 600, cursor: 'pointer' }}
+                              />
+                            ) : (
+                              <Chip
+                                size="small"
+                                icon={<HourglassEmptyIcon fontSize="small" />}
+                                label="Pendiente"
+                                variant="outlined"
+                                sx={{ fontWeight: 600, cursor: 'pointer' }}
+                              />
+                            )}
+                          </Tooltip>
+                          {item.finding && item.finding.active && (
+                            <Tooltip title="Ver No Conformidad vinculada">
+                              <Chip
+                                size="small"
+                                label={item.finding.code}
+                                color="error"
+                                variant="outlined"
+                                clickable
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate('/findings');
+                                }}
+                                sx={{ fontWeight: 700 }}
+                              />
+                            </Tooltip>
                           )}
-                        </Tooltip>
+                        </Stack>
                       </TableCell>
                       <TableCell sx={{ fontSize: 12, color: '#666' }}>{item.comment ?? '—'}</TableCell>
                       <TableCell sx={{ width: 60 }}>

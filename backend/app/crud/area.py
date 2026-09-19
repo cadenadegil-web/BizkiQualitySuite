@@ -43,12 +43,13 @@ def get_by_name(db: Session, name: str) -> Area | None:
     return db.scalar(stmt)
 
 
-def create(db: Session, name: str) -> Area:
+def create(db: Session, name: str, plant: str | None = None) -> Area:
     """
     Crea una nueva área.
     """
     area = Area(
         name=name,
+        plant=plant,
         active=True,
     )
 
@@ -63,6 +64,7 @@ def update(
     db: Session,
     area: Area,
     name: str | None = None,
+    plant: str | None = None,
     active: bool | None = None,
 ) -> Area:
     """
@@ -71,6 +73,9 @@ def update(
 
     if name is not None:
         area.name = name
+
+    if plant is not None:
+        area.plant = plant
 
     if active is not None:
         area.active = active

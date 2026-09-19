@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.user import User
     from app.models.capa import CAPA
     from app.models.evidence import Evidence
+    from app.models.audit import Audit, AuditItem
 
 
 class Finding(Base):
@@ -109,6 +110,18 @@ class Finding(Base):
         nullable=True,
     )
 
+    audit_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("audits.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    audit_item_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("audit_items.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # =====================================================
     # Relaciones ORM
     # =====================================================
@@ -134,6 +147,17 @@ class Finding(Base):
     user: Mapped["User"] = relationship(
         "User",
         back_populates="findings",
+        lazy="joined",
+    )
+
+    audit: Mapped["Audit | None"] = relationship(
+        "Audit",
+        lazy="joined",
+    )
+
+    audit_item: Mapped["AuditItem | None"] = relationship(
+        "AuditItem",
+        back_populates="finding",
         lazy="joined",
     )
 

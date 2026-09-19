@@ -1,7 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean
-from sqlalchemy import String
+from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
@@ -29,6 +28,9 @@ class Area(Base):
     """
 
     __tablename__ = "areas"
+    __table_args__ = (
+        UniqueConstraint("name", "plant", name="uq_areas_name_plant"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -38,8 +40,14 @@ class Area(Base):
 
     name: Mapped[str] = mapped_column(
         String(100),
-        unique=True,
         nullable=False,
+        index=True,
+    )
+
+    plant: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+        default=None,
         index=True,
     )
 

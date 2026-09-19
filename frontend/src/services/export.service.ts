@@ -171,14 +171,20 @@ export function exportCatalogToPDF(items: CatalogItem[], typeName: string): void
 
   // Configuración de columnas
   const isNorm = items.some(item => item.category !== undefined || item.description !== undefined);
+  const isArea = typeName.toLowerCase().includes("área") || items.some(item => item.plant !== undefined);
   const headers = isNorm 
     ? ["Nombre", "Categoría", "Punto de Control", "Estado"]
+    : isArea
+    ? ["Nombre", "Planta", "Estado"]
     : ["Nombre", "Estado"];
 
   const body = items.map(item => {
     const status = item.active ? "Activo" : "Inactivo";
     if (isNorm) {
       return [item.name, item.category ?? "—", item.description ?? "—", status];
+    }
+    if (isArea) {
+      return [item.name, item.plant ?? "—", status];
     }
     return [item.name, status];
   });
@@ -204,6 +210,10 @@ export function exportCatalogToPDF(items: CatalogItem[], typeName: string): void
       1: { cellWidth: 50 },
       2: { cellWidth: 70 },
       3: { cellWidth: 20 },
+    } : isArea ? {
+      0: { cellWidth: 80 },
+      1: { cellWidth: 70 },
+      2: { cellWidth: 30 },
     } : {
       0: { cellWidth: 150 },
       1: { cellWidth: 30 },
@@ -228,6 +238,7 @@ export function exportCatalogToPDF(items: CatalogItem[], typeName: string): void
 
 export function exportCatalogToExcel(items: CatalogItem[], typeName: string): void {
   const isNorm = items.some(item => item.category !== undefined || item.description !== undefined);
+  const isArea = typeName.toLowerCase().includes("área") || items.some(item => item.plant !== undefined);
   const rows = items.map(item => {
     const status = item.active ? "Activo" : "Inactivo";
     if (isNorm) {
@@ -235,6 +246,13 @@ export function exportCatalogToExcel(items: CatalogItem[], typeName: string): vo
         Nombre: item.name,
         Categoría: item.category ?? "—",
         "Punto de Control": item.description ?? "—",
+        Estado: status
+      };
+    }
+    if (isArea) {
+      return {
+        Nombre: item.name,
+        Planta: item.plant ?? "—",
         Estado: status
       };
     }
@@ -252,6 +270,12 @@ export function exportCatalogToExcel(items: CatalogItem[], typeName: string): vo
       { wch: 30 }, // Categoría
       { wch: 50 }, // Punto de Control
       { wch: 12 }, // Estado
+    ];
+  } else if (isArea) {
+    worksheet["!cols"] = [
+      { wch: 30 }, // Nombre
+      { wch: 30 }, // Planta
+      { wch: 15 }, // Estado
     ];
   } else {
     worksheet["!cols"] = [

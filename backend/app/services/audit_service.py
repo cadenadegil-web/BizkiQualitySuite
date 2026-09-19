@@ -86,6 +86,85 @@ def get_audits_by_date(db: Session, target_date: date) -> list[Audit]:
     )
 
 
+def sync_audit_findings(db: Session, audit: Audit) -> None:
+    """
+    Sincroniza las No Conformidades (Findings) asociadas a los ítems de la auditoría.
+    Crea o actualiza hallazgos para ítems NO_CONFORME, y desactiva hallazgos
+    si el ítem cambia a CONFORME u OBSERVACION.
+    """
+    items = audit.items
+    if not items:
+        return
+
+    nc_classification = (
+        db.query(Classification)
+        .filter(Classification.name.ilike("%no conforme%"))
+        .first()
+        or db.query(Classification).first()
+    )
+    open_status = (
+        db.query(Status)
+        .filter(Status.name.ilike("%abierto%"))
+        .first()
+        or db.query(Status).first()
+    )
+
+    for item in items:
+        # Buscar hallazgo existente vinculado por audit_item_id o por audit_id y coincidencia de descripción
+        existing_finding = (
+            db.query(Finding)
+            .filter(Finding.audit_item_id == item.id)
+            .first()
+        )
+        if not existing_finding:
+            prefix = f"[Auditoría {audit.code}] {item.norm}: {item.control_point}"
+            existing_finding = (
+                db.query(Finding)
+                .filter(
+                    Finding.audit_id == audit.id,
+                    Finding.description.startswith(prefix)
+                )
+                .first()
+            )
+
+        description = f"[Auditoría {audit.code}] {item.norm}: {item.control_point}"
+        if item.comment:
+            description += f". Comentario: {item.comment}"
+
+        process_name = f"Auditoría {audit.shift} — {audit.area.name if audit.area else ''}"
+
+        if item.result == "NO_CONFORME":
+            if existing_finding:
+                existing_finding.description = description
+                existing_finding.process = process_name
+                existing_finding.responsible = audit.auditor
+                existing_finding.area_id = audit.area_id
+                existing_finding.audit_id = audit.id
+                existing_finding.audit_item_id = item.id
+                existing_finding.active = True
+            else:
+                new_finding = Finding(
+                    code=generate_finding_code(db),
+                    process=process_name,
+                    finding_type="No Conformidad",
+                    description=description,
+                    responsible=audit.auditor,
+                    area_id=audit.area_id,
+                    classification_id=nc_classification.id if nc_classification else None,
+                    status_id=open_status.id if open_status else None,
+                    audit_id=audit.id,
+                    audit_item_id=item.id,
+                    created_at=datetime.now(),
+                    active=True,
+                )
+                db.add(new_finding)
+                db.flush()
+        else:
+            # Si el ítem ya no es NO_CONFORME, desactivar el hallazgo existente si lo había
+            if existing_finding:
+                existing_finding.active = False
+
+
 def update_audit(db: Session, audit: Audit, data: AuditUpdate) -> Audit:
     values = data.model_dump(exclude_unset=True, exclude={"items"})
     for key, value in values.items():
@@ -106,11 +185,13 @@ def update_audit(db: Session, audit: Audit, data: AuditUpdate) -> Audit:
                 comment=item_data.comment,
             )
             db.add(item)
+        db.flush()
 
         if audit.status == "COMPLETADA":
-            conformes = sum(1 for it in data.items if it.result == "CONFORME")
-            total = len(data.items)
+            total = len(audit.items)
+            conformes = sum(1 for it in audit.items if it.result == "CONFORME")
             audit.score = round((conformes / total) * 100, 1) if total > 0 else 0.0
+            sync_audit_findings(db, audit)
 
     db.commit()
     db.refresh(audit)
@@ -119,6 +200,8 @@ def update_audit(db: Session, audit: Audit, data: AuditUpdate) -> Audit:
 
 def delete_audit(db: Session, audit: Audit) -> Audit:
     audit.active = False
+    # Desactivar también los hallazgos vinculados
+    db.query(Finding).filter(Finding.audit_id == audit.id).update({"active": False})
     db.commit()
     db.refresh(audit)
     return audit
@@ -130,7 +213,7 @@ def delete_audit(db: Session, audit: Audit) -> Audit:
 
 def complete_audit(db: Session, audit: Audit) -> Audit:
     """
-    Calcula el puntaje de la auditoría y auto-genera Findings
+    Calcula el puntaje de la auditoría y auto-genera/sincroniza Findings
     para cada ítem con resultado NO_CONFORME.
     """
     items = audit.items
@@ -146,43 +229,7 @@ def complete_audit(db: Session, audit: Audit) -> Audit:
     audit.score = round((conformes / total) * 100, 1)
     audit.status = "COMPLETADA"
 
-    # Obtener catálogos por defecto para los hallazgos auto-generados
-    nc_classification = (
-        db.query(Classification)
-        .filter(Classification.name.ilike("%no conforme%"))
-        .first()
-        or db.query(Classification).first()
-    )
-    open_status = (
-        db.query(Status)
-        .filter(Status.name.ilike("%abierto%"))
-        .first()
-        or db.query(Status).first()
-    )
-
-    # Auto-generar hallazgos para no conformidades
-    for item in items:
-        if item.result == "NO_CONFORME":
-            description = (
-                f"[Auditoría {audit.code}] {item.norm}: {item.control_point}"
-            )
-            if item.comment:
-                description += f". Comentario: {item.comment}"
-
-            finding = Finding(
-                code=generate_finding_code(db),
-                process=f"Auditoría {audit.shift} — {audit.area.name if audit.area else ''}",
-                finding_type="No Conformidad",
-                description=description,
-                responsible=audit.auditor,
-                area_id=audit.area_id,
-                classification_id=nc_classification.id if nc_classification else None,
-                status_id=open_status.id if open_status else None,
-                created_at=datetime.now(),
-                active=True,
-            )
-            db.add(finding)
-            db.flush()  # Ensure finding.id is generated before next iteration
+    sync_audit_findings(db, audit)
 
     db.commit()
     db.refresh(audit)

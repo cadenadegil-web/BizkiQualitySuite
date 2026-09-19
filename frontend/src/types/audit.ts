@@ -6,6 +6,7 @@ export interface AuditItem {
   control_point: string;
   result: 'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null;
   comment: string | null;
+  finding?: { id: string; code: string; active: boolean } | null;
 }
 
 export interface Audit {

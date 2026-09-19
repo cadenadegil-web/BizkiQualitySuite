@@ -34,6 +34,11 @@ export interface Finding {
   classification_id?: string;
   status_id?: string;
   user_id?: string;
+  audit_id?: string;
+  audit_item_id?: string;
+
+  // Auditoría de origen (si aplica)
+  audit?: { id: string; code: string; shift: string };
 
   // Acciones correctivas asociadas
   capas?: CAPA[];
