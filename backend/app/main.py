@@ -83,3 +83,39 @@ def root():
         "version": settings.APP_VERSION,
         "estado": "Operativo",
     }
+
+
+@app.get("/api/diagnostics")
+def diagnostics():
+    from app.database.connection import SessionLocal
+    from sqlalchemy import text
+    from app.models.user import User
+    from app.models.area import Area
+    from sqlalchemy import func
+
+    db = SessionLocal()
+    result = {"status": "ok"}
+    try:
+        tables = [
+            row[0] for row in db.execute(
+                text("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;")
+            ).fetchall()
+        ]
+        result["tables"] = tables
+
+        # Admin user check
+        admin = db.query(User).filter(func.lower(User.username) == "admin").first()
+        result["admin_user"] = {
+            "exists": admin is not None,
+            "username": admin.username if admin else None,
+            "role": admin.role if admin else None,
+            "is_active": admin.is_active if admin else None,
+        }
+
+        # Areas count
+        result["areas_count"] = db.query(Area).count()
+        return result
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+    finally:
+        db.close()

@@ -94,7 +94,7 @@ def create_database() -> None:
     except Exception as e:
         print(f"Aviso durante migración de esquema: {e}")
 
-    # Seed Norms
+    # Seed Norms, Catalogs and Admin
     db = SessionLocal()
     try:
         count = db.query(Norm).count()
@@ -102,5 +102,34 @@ def create_database() -> None:
             for n in INITIAL_NORMS:
                 db.add(Norm(name=n["norm"], description=n["control_point"], category=n.get("category")))
             db.commit()
+
+        # Seed other catalogs (areas, classifications, statuses)
+        from app.database.seed import seed_database
+        seed_database(db)
+
+        # Seed / Ensure Admin User exists
+        from app.security.password import hash_password
+        from sqlalchemy import func
+        admin = db.query(User).filter(func.lower(User.username) == "admin").first()
+        if not admin:
+            admin = User(
+                full_name="Administrador del Sistema",
+                username="admin",
+                email="admin@bizki.com",
+                password_hash=hash_password("admin123"),
+                role="administrador",
+                is_active=True,
+            )
+            db.add(admin)
+            db.commit()
+            print("Usuario 'admin' creado exitosamente.")
+        else:
+            admin.is_active = True
+            admin.password_hash = hash_password("admin123")
+            db.commit()
+            print("Usuario 'admin' actualizado y verificado.")
+    except Exception as e:
+        print(f"Aviso durante seed inicial: {e}")
+        db.rollback()
     finally:
         db.close()
