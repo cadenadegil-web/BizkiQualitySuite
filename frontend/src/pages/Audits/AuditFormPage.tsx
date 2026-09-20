@@ -13,6 +13,8 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
 
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
+
 import { createAudit, getAudit, updateAudit } from '../../services/audits.service';
 import { getCatalogItems } from '../../services/catalogs.service';
 import { AuditItemCreate } from '../../types/audit';
@@ -54,13 +56,13 @@ export default function AuditFormPage() {
       setNormsCatalog(catalog);
       setSuggestedNorms(catalog.map(n => n.norm));
       
-      // Auto-load 10 default items if the form is empty and NOT editing
+      // Auto-load all items from catalog if the form is empty and NOT editing
       if (!isEditing) {
         setItems(prev => {
           if (prev.length === 0 && catalog.length > 0) {
-            keyCounter = 10;
-            return catalog.slice(0, 10).map((n, i) => ({
-              _key: i, order: i + 1, norm: n.norm, control_point: n.control_point, result: null, comment: null
+            keyCounter = catalog.length + 10;
+            return catalog.map((n, i) => ({
+              _key: i + 1, order: i + 1, norm: n.norm, control_point: n.control_point, result: null, comment: null
             }));
           }
           return prev;
@@ -97,6 +99,24 @@ export default function AuditFormPage() {
         });
     }
   }, [id, isEditing]);
+
+  const handleLoadAllCatalogPoints = () => {
+    if (normsCatalog.length === 0) {
+      setSnack({ open: true, message: 'No hay puntos en el catálogo disponibles para cargar.', severity: 'error' });
+      return;
+    }
+    keyCounter = normsCatalog.length + 10;
+    const newItems: FormItem[] = normsCatalog.map((n, i) => ({
+      _key: i + 1,
+      order: i + 1,
+      norm: n.norm,
+      control_point: n.control_point,
+      result: null,
+      comment: null,
+    }));
+    setItems(newItems);
+    setSnack({ open: true, message: `Se cargaron todos los ${newItems.length} puntos de control del catálogo.`, severity: 'success' });
+  };
 
   const setItemResult = (key: number, result: ResultType) => {
     setItems(prev => prev.map(it => it._key === key ? { ...it, result } : it));
@@ -270,11 +290,26 @@ export default function AuditFormPage() {
       {/* Checklist */}
       <Card sx={{ borderRadius: 2 }} elevation={2}>
         <CardContent>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>Puntos de Control</Typography>
-            <Button size="small" startIcon={<AddIcon />} onClick={addItem} sx={{ textTransform: 'none' }}>
-              Agregar punto
-            </Button>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }} flexWrap="wrap" gap={1}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: '#1976d2' }}>
+              Puntos de Control ({items.length})
+            </Typography>
+            <Stack direction="row" gap={1}>
+              {normsCatalog.length > 0 && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PlaylistAddCheckIcon />}
+                  onClick={handleLoadAllCatalogPoints}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Cargar todos los puntos ({normsCatalog.length})
+                </Button>
+              )}
+              <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={addItem} sx={{ textTransform: 'none' }}>
+                Agregar punto
+              </Button>
+            </Stack>
           </Stack>
 
           <Stack gap={2}>
