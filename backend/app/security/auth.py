@@ -47,12 +47,23 @@ def get_current_user(
 def get_current_admin_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
-    role = current_user.role.lower()
+    role = (current_user.role or "").strip().lower()
 
-    if role not in {"administrador", "admin"}:
+    allowed_roles = {
+        "administrador",
+        "admin",
+        "coordinador de calidad",
+        "coordinador",
+        "supervisor de calidad",
+        "supervisora",
+        "supervisor",
+        "supervisor de producción",
+    }
+
+    if role not in allowed_roles:
         raise HTTPException(
             status_code=403,
-            detail="Permiso denegado. Se requiere rol de administrador.",
+            detail="Permiso denegado. Se requiere rol de administrador, coordinador o supervisor.",
         )
 
     return current_user

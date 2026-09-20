@@ -49,6 +49,7 @@ export default function UsersPage() {
     severity: "success" | "error";
   }>({ open: false, message: "", severity: "success" });
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Column filter states
   const [filterFullName, setFilterFullName] = useState("");
@@ -72,21 +73,25 @@ export default function UsersPage() {
 
   const handleOpenCreate = () => {
     setEditingUser(null);
+    setFormError(null);
     setOpenForm(true);
   };
 
   const handleOpenEdit = (user: User) => {
     setEditingUser(user);
+    setFormError(null);
     setOpenForm(true);
   };
 
   const handleCloseForm = () => {
     setOpenForm(false);
     setEditingUser(null);
+    setFormError(null);
   };
 
   const handleSubmitUser = async (formData: UserFormData) => {
     setSubmitting(true);
+    setFormError(null);
     try {
       if (editingUser) {
         const payload: Record<string, any> = { ...formData };
@@ -103,6 +108,7 @@ export default function UsersPage() {
       console.error("Error en operación de usuario", error);
       const msg =
         error?.response?.data?.detail || error?.message || "Error al procesar usuario.";
+      setFormError(String(msg));
       setSnack({ open: true, message: String(msg), severity: "error" });
     } finally {
       setSubmitting(false);
@@ -294,6 +300,7 @@ export default function UsersPage() {
         onSubmit={handleSubmitUser}
         submitting={submitting}
         editingUser={editingUser}
+        errorMessage={formError}
       />
 
       <Dialog

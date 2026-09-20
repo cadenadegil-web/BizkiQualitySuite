@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -22,20 +23,21 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { User } from "../../services/users.service";
 
 const createSchema = z.object({
   full_name: z.string().min(1, "Nombre completo es requerido."),
-  username: z.string().min(3, "Nombre de usuario es requerido."),
-  email: z.string().email("Correo no válido."),
+  username: z.string().min(3, "Nombre de usuario debe tener al menos 3 caracteres."),
+  email: z.string().email("Correo electrónico no válido."),
   role: z.string().min(1, "Rol es requerido."),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
+  password: z.string().min(4, "La contraseña debe tener al menos 4 caracteres."),
   is_active: z.boolean(),
 });
 
 const editSchema = z.object({
   full_name: z.string().min(1, "Nombre completo es requerido."),
-  username: z.string().min(3, "Nombre de usuario es requerido."),
-  email: z.string().email("Correo no válido."),
+  username: z.string().min(3, "Nombre de usuario debe tener al menos 3 caracteres."),
+  email: z.string().email("Correo electrónico no válido."),
   role: z.string().min(1, "Rol es requerido."),
   password: z.string().optional().or(z.literal("")),
   is_active: z.boolean(),
@@ -49,6 +51,7 @@ interface UserFormProps {
   onSubmit: (data: UserFormData) => void;
   submitting?: boolean;
   editingUser?: User | null;
+  errorMessage?: string | null;
   defaultValues?: Partial<UserFormData>;
 }
 
@@ -58,6 +61,7 @@ export default function UserForm({
   onSubmit,
   submitting = false,
   editingUser = null,
+  errorMessage = null,
   defaultValues,
 }: UserFormProps) {
   const [showPassword, setShowPassword] = useState(false);
@@ -115,6 +119,18 @@ export default function UserForm({
 
       <Box component="form" onSubmit={handleSubmit(onSubmit)}>
         <DialogContent dividers>
+          {errorMessage && (
+            <Alert severity="error" sx={{ mb: 2.5, fontWeight: 500 }}>
+              {errorMessage}
+            </Alert>
+          )}
+
+          {Object.keys(errors).length > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Por favor revisa los campos requeridos marcados en rojo.
+            </Alert>
+          )}
+
           <Box
             sx={{
               display: "grid",

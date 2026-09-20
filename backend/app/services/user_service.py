@@ -12,11 +12,11 @@ def create_user(db: Session, user: UserCreate):
 
     # Validar username existente
     if user_crud.get_by_username(db, user.username):
-        raise ValueError("El nombre de usuario ya existe.")
+        raise ValueError(f"El nombre de usuario '{user.username}' ya está registrado. Por favor elija otro.")
 
     # Validar email existente
     if user_crud.get_by_email(db, user.email):
-        raise ValueError("El correo electrónico ya existe.")
+        raise ValueError(f"El correo electrónico '{user.email}' ya pertenece a otro usuario registrado.")
 
     return user_crud.create(
         db=db,

@@ -31,12 +31,12 @@ export interface UserUpdateRequest {
 export async function createUser(
   user: UserCreateRequest
 ) {
-  const response = await api.post("/users", user);
+  const response = await api.post("/users/", user);
   return response.data as User;
 }
 
 export async function getUsers() {
-  const response = await api.get("/users");
+  const response = await api.get("/users/");
   return response.data as User[];
 }
 

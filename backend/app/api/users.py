@@ -19,6 +19,10 @@ router = APIRouter(
 
 
 @router.post(
+    "",
+    response_model=UserResponse,
+)
+@router.post(
     "/",
     response_model=UserResponse,
 )
@@ -36,6 +40,10 @@ def create_new_user(
         )
 
 
+@router.get(
+    "",
+    response_model=list[UserResponse],
+)
 @router.get(
     "/",
     response_model=list[UserResponse],
