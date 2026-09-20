@@ -15,6 +15,7 @@ class AuditItemBase(BaseModel):
     order: int = 1
     norm: str
     control_point: str
+    objective: Optional[str] = None
     result: Optional[str] = None  # CONFORME / NO_CONFORME / OBSERVACION
     comment: Optional[str] = None
 
@@ -24,6 +25,7 @@ class AuditItemCreate(AuditItemBase):
 
 
 class AuditItemUpdate(BaseModel):
+    objective: Optional[str] = None
     result: Optional[str] = None
     comment: Optional[str] = None
 
@@ -46,6 +48,7 @@ class AuditBase(BaseModel):
     audit_date: date
     shift: str
     auditor: str
+    measurement_objective: Optional[str] = None
     observations: Optional[str] = None
     area_id: UUID
 
@@ -58,6 +61,7 @@ class AuditUpdate(BaseModel):
     audit_date: Optional[date] = None
     shift: Optional[str] = None
     auditor: Optional[str] = None
+    measurement_objective: Optional[str] = None
     observations: Optional[str] = None
     area_id: Optional[UUID] = None
     items: Optional[list[AuditItemCreate]] = None
@@ -73,4 +77,5 @@ class AuditResponse(AuditBase):
     updated_at: datetime
     area: Optional[AreaResponse] = None
     items: list[AuditItemResponse] = []
+    objectives: list[str] = []
     model_config = ConfigDict(from_attributes=True)

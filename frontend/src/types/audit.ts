@@ -4,6 +4,7 @@ export interface AuditItem {
   order: number;
   norm: string;
   control_point: string;
+  objective?: string | null;
   result: 'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null;
   comment: string | null;
   finding?: { id: string; code: string; active: boolean } | null;
@@ -15,6 +16,8 @@ export interface Audit {
   audit_date: string;   // ISO date string
   shift: string;        // Mañana / Tarde / Noche
   auditor: string;
+  measurement_objective?: string | null;
+  objectives?: string[];
   observations: string | null;
   status: 'PENDIENTE' | 'COMPLETADA';
   score: number | null;
@@ -30,6 +33,7 @@ export interface AuditItemCreate {
   order: number;
   norm: string;
   control_point: string;
+  objective?: string | null;
   result?: 'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null;
   comment?: string | null;
 }
@@ -38,6 +42,7 @@ export interface AuditCreate {
   audit_date: string;
   shift: string;
   auditor: string;
+  measurement_objective?: string;
   observations?: string;
   area_id: string;
   items: AuditItemCreate[];
@@ -47,6 +52,7 @@ export interface AuditUpdate {
   audit_date?: string;
   shift?: string;
   auditor?: string;
+  measurement_objective?: string;
   observations?: string;
   area_id?: string;
   items?: AuditItemCreate[];

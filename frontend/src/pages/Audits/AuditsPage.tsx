@@ -18,6 +18,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import { useAudits } from '../../hooks/useAudits';
 import { completeAudit, deleteAudit, downloadAuditPDF, downloadDailyReportPDF } from '../../services/audits.service';
 import { Audit } from '../../types/audit';
+import { getAuditObjectives, getObjectiveColor } from '../../utils/auditObjectives';
 
 export default function AuditsPage() {
   const navigate = useNavigate();
@@ -72,15 +73,68 @@ export default function AuditsPage() {
   };
 
   const columns: GridColDef[] = [
-    { field: 'code', headerName: 'Código', flex: 1.2, minWidth: 150 },
+    { field: 'code', headerName: 'Código', flex: 1.1, minWidth: 140 },
     {
       field: 'area',
       headerName: 'Área',
-      flex: 1,
-      minWidth: 120,
+      flex: 0.9,
+      minWidth: 110,
       valueGetter: (_: unknown, row: Audit) => row.area?.name ?? '—',
     },
-    { field: 'auditor', headerName: 'Auditor', flex: 1.2, minWidth: 140 },
+    {
+      field: 'objectives',
+      headerName: 'Objetivo de Medición',
+      flex: 1.8,
+      minWidth: 230,
+      valueGetter: (_: unknown, row: Audit) => getAuditObjectives(row).join(', '),
+      renderCell: (params) => {
+        const objs = getAuditObjectives(params.row);
+        if (!objs || objs.length === 0) {
+          return <Typography variant="caption" color="text.secondary">—</Typography>;
+        }
+        const visible = objs.slice(0, 2);
+        const remaining = objs.slice(2);
+        return (
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ height: '100%', flexWrap: 'nowrap', overflow: 'hidden' }}>
+            {visible.map(obj => {
+              const col = getObjectiveColor(obj);
+              return (
+                <Chip
+                  key={obj}
+                  label={obj}
+                  size="small"
+                  sx={{
+                    backgroundColor: col.bg,
+                    color: col.color,
+                    border: `1px solid ${col.border}`,
+                    fontWeight: 600,
+                    fontSize: '0.72rem',
+                    height: 22,
+                  }}
+                />
+              );
+            })}
+            {remaining.length > 0 && (
+              <Tooltip title={objs.join(' · ')} arrow>
+                <Chip
+                  label={`+${remaining.length}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.7rem',
+                    height: 22,
+                    cursor: 'pointer',
+                    backgroundColor: '#f5f5f5',
+                  }}
+                />
+              </Tooltip>
+            )}
+          </Stack>
+        );
+      },
+    },
+    { field: 'auditor', headerName: 'Auditor', flex: 1.1, minWidth: 130 },
     { field: 'shift', headerName: 'Turno', flex: 0.8, minWidth: 100 },
     {
       field: 'audit_date',

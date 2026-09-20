@@ -95,11 +95,12 @@ def _generate_audit_pdf_reportlab(audit: Audit) -> bytes:
     score_str = f"{audit.score:.1f}%" if audit.score is not None else "---"
     status_str = "Completada" if audit.status == "COMPLETADA" else "Pendiente"
     
+    obj_str = (audit.measurement_objective or "General BPM")[:35]
     data = [
         ["Código:", audit.code, "Fecha:", _fmt_date(audit.audit_date)],
         ["Turno:", audit.shift, "Área:", area_name],
         ["Auditor:", audit.auditor, "Estado:", status_str],
-        ["Puntaje:", score_str, "", ""]
+        ["Puntaje:", score_str, "Objetivo:", obj_str]
     ]
     t = Table(data, colWidths=[3*cm, 5*cm, 3*cm, 5*cm])
     t.setStyle(TableStyle([
@@ -262,13 +263,14 @@ def _generate_daily_report_pdf_reportlab(audits: list[Audit], report_date: date)
     
     # Resumen
     elements.append(Paragraph("<b>3. Información General Consolidada</b>", subtitle_style))
-    summary_data = [["Código", "Área", "Auditor", "Turno", "Puntaje", "NC", "Estado"]]
+    summary_data = [["Código", "Área", "Objetivo", "Auditor", "Turno", "Puntaje", "NC", "Estado"]]
     for audit in audits:
-        area_name = (audit.area.name if audit.area else "---")[:20]
+        area_name = (audit.area.name if audit.area else "---")[:16]
+        obj_name = (audit.measurement_objective or "General")[:16]
         score = f"{audit.score:.1f}%" if audit.score is not None else "---"
         nc = str(sum(1 for it in audit.items if it.result == "NO_CONFORME"))
         status = "Completada" if audit.status == "COMPLETADA" else "Pendiente"
-        summary_data.append([audit.code, area_name, audit.auditor[:20], audit.shift, score, nc, status])
+        summary_data.append([audit.code, area_name, obj_name, audit.auditor[:15], audit.shift, score, nc, status])
         
     t = Table(summary_data)
     t.setStyle(TableStyle([

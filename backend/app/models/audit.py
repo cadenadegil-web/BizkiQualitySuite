@@ -28,6 +28,7 @@ class Audit(Base):
     audit_date: Mapped[date] = mapped_column(Date, nullable=False)
     shift: Mapped[str] = mapped_column(String(20), nullable=False)  # Mañana / Tarde / Noche
     auditor: Mapped[str] = mapped_column(String(150), nullable=False)
+    measurement_objective: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Clasificación consolidada (Personal, Plagas, etc.)
     observations: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     # Estado
@@ -65,6 +66,7 @@ class AuditItem(Base):
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     norm: Mapped[str] = mapped_column(String(100), nullable=False)  # ej. "BPM §4.1"
     control_point: Mapped[str] = mapped_column(String(300), nullable=False)
+    objective: Mapped[str | None] = mapped_column(String(100), nullable=True)  # Objetivo de medición clasificado
     
     # Resultado
     result: Mapped[str | None] = mapped_column(String(30), nullable=True)  # CONFORME / NO_CONFORME / OBSERVACION

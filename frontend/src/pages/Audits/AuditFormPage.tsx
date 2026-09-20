@@ -16,6 +16,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import { createAudit, getAudit, updateAudit } from '../../services/audits.service';
 import { getCatalogItems } from '../../services/catalogs.service';
 import { AuditItemCreate } from '../../types/audit';
+import { classifyAuditItemObjective, getObjectiveColor } from '../../utils/auditObjectives';
 
 type ResultType = 'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null;
 
@@ -303,6 +304,26 @@ export default function AuditFormPage() {
                   </Box>
 
                   <Box sx={{ flex: 1 }}>
+                    <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
+                      {(() => {
+                        const obj = item.objective || classifyAuditItemObjective(item.norm, item.control_point);
+                        const col = getObjectiveColor(obj);
+                        return (
+                          <Chip
+                            label={`Objetivo: ${obj}`}
+                            size="small"
+                            sx={{
+                              backgroundColor: col.bg,
+                              color: col.color,
+                              border: `1px solid ${col.border}`,
+                              fontWeight: 600,
+                              fontSize: '0.72rem',
+                              height: 22,
+                            }}
+                          />
+                        );
+                      })()}
+                    </Stack>
                     <Box sx={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 1, mb: 1.5 }}>
                       <Autocomplete
                         freeSolo

@@ -28,6 +28,68 @@ def generate_finding_code(db: Session) -> str:
 
 
 # =====================================================
+# Clasificación de Objetivos de Medición
+# =====================================================
+
+def classify_item_objective(norm: str, control_point: str) -> str:
+    text = f"{norm} {control_point}".lower()
+    if any(w in text for w in ["plaga", "roedor", "insecto", "cebadero", "desratiz", "fumiga", "infestaci"]):
+        return "Control de Plagas"
+    if any(w in text for w in ["químic", "quimic", "sustancia", "detergente", "desinfectante", "msds", "fds", "reactivo"]):
+        return "Control de Químicos"
+    if any(w in text for w in ["personal", "uniforme", "epp", "manos", "joya", "uña", "salud", "enfermedad", "manipulador", "higiene personal"]):
+        return "Personal"
+    if any(w in text for w in ["alergen", "alérgen"]):
+        return "Control de Alérgenos"
+    if any(w in text for w in ["calibra", "equipo", "utensilio", "mantenimiento", "balanza", "termómetro", "termometro"]):
+        return "Equipos y Utensilios"
+    if any(w in text for w in ["térmic", "termic", "temperatura", "humedad", "cocción", "coccion", "enfriamiento", "horno"]):
+        return "Control de Procesos"
+    if any(w in text for w in ["trazabil", "lote", "etiqueta", "caducidad", "vencimiento"]):
+        return "Trazabilidad y Etiquetado"
+    if any(w in text for w in ["almacén", "almacen", "peps", "inventario", "estiba", "tarima", "bodega"]):
+        return "Almacenamiento"
+    if any(w in text for w in ["limpi", "instalaci", "polvo", "telaraña", "telarana", "drenaje", "saneamiento", "poes"]):
+        return "Limpieza e Instalaciones"
+    if any(w in text for w in ["desecho", "merma", "reproceso", "desperdicio", "food loss"]):
+        return "Manejo de Desechos"
+    if any(w in text for w in ["pcc", "haccp", "punto crítico", "punto critico", "peligro"]):
+        return "Puntos Críticos (HACCP)"
+    if any(w in text for w in ["extintor", "evacuaci", "primeros auxilios", "botiquín", "botiquin", "sst"]):
+        return "Seguridad y Salud (SST)"
+    if any(w in text for w in ["muestra", "laboratorio", "calidad", "especificación", "especificacion"]):
+        return "Control de Calidad"
+    if any(w in text for w in ["defense", "fraud", "defensa", "fraude", "sabotaje"]):
+        return "Defensa y Fraude Alimentario"
+    return "Control General"
+
+
+def populate_audit_objectives(audit: Audit) -> Audit:
+    """
+    Asegura que cada ítem tenga su objetivo clasificado y que la auditoría
+    tenga su lista de objetivos y campo measurement_objective poblado.
+    """
+    objs = []
+    if audit.items:
+        for it in audit.items:
+            if not it.objective:
+                it.objective = classify_item_objective(it.norm, it.control_point)
+            if it.objective and it.objective not in objs:
+                objs.append(it.objective)
+    
+    if not audit.measurement_objective and objs:
+        audit.measurement_objective = ", ".join(objs)
+    elif audit.measurement_objective:
+        stored_objs = [o.strip() for o in audit.measurement_objective.split(",") if o.strip()]
+        for so in stored_objs:
+            if so not in objs:
+                objs.append(so)
+                
+    audit.objectives = objs
+    return audit
+
+
+# =====================================================
 # CRUD Auditoría
 # =====================================================
 
@@ -37,6 +99,7 @@ def create_audit(db: Session, data: AuditCreate) -> Audit:
         audit_date=data.audit_date,
         shift=data.shift,
         auditor=data.auditor,
+        measurement_objective=data.measurement_objective,
         observations=data.observations,
         area_id=data.area_id,
         status="PENDIENTE",
@@ -44,46 +107,64 @@ def create_audit(db: Session, data: AuditCreate) -> Audit:
     db.add(audit)
     db.flush()  # get audit.id
 
+    distinct_objs = []
     for i, item_data in enumerate(data.items, start=1):
+        obj = item_data.objective or classify_item_objective(item_data.norm, item_data.control_point)
+        if obj and obj not in distinct_objs:
+            distinct_objs.append(obj)
         item = AuditItem(
             audit_id=audit.id,
             order=item_data.order or i,
             norm=item_data.norm,
             control_point=item_data.control_point,
+            objective=obj,
             result=item_data.result,
             comment=item_data.comment,
         )
         db.add(item)
 
+    if not audit.measurement_objective and distinct_objs:
+        audit.measurement_objective = ", ".join(distinct_objs)
+
     db.commit()
     db.refresh(audit)
+    populate_audit_objectives(audit)
     return audit
 
 
 def get_audits(db: Session) -> list[Audit]:
-    return (
+    audits = (
         db.query(Audit)
         .filter(Audit.active.is_(True))
         .order_by(Audit.audit_date.desc())
         .all()
     )
+    for a in audits:
+        populate_audit_objectives(a)
+    return audits
 
 
 def get_audit(db: Session, audit_id: UUID) -> Audit | None:
-    return (
+    audit = (
         db.query(Audit)
         .filter(Audit.id == audit_id, Audit.active.is_(True))
         .first()
     )
+    if audit:
+        populate_audit_objectives(audit)
+    return audit
 
 
 def get_audits_by_date(db: Session, target_date: date) -> list[Audit]:
-    return (
+    audits = (
         db.query(Audit)
         .filter(Audit.audit_date == target_date, Audit.active.is_(True))
         .order_by(Audit.created_at)
         .all()
     )
+    for a in audits:
+        populate_audit_objectives(a)
+    return audits
 
 
 def sync_audit_findings(db: Session, audit: Audit) -> None:
@@ -175,17 +256,25 @@ def update_audit(db: Session, audit: Audit, data: AuditUpdate) -> Audit:
         for old_item in list(audit.items):
             db.delete(old_item)
         db.flush()
+        distinct_objs = []
         for i, item_data in enumerate(data.items, start=1):
+            obj = item_data.objective or classify_item_objective(item_data.norm, item_data.control_point)
+            if obj and obj not in distinct_objs:
+                distinct_objs.append(obj)
             item = AuditItem(
                 audit_id=audit.id,
                 order=item_data.order or i,
                 norm=item_data.norm,
                 control_point=item_data.control_point,
+                objective=obj,
                 result=item_data.result,
                 comment=item_data.comment,
             )
             db.add(item)
         db.flush()
+
+        if not audit.measurement_objective and distinct_objs:
+            audit.measurement_objective = ", ".join(distinct_objs)
 
         if audit.status == "COMPLETADA":
             total = len(audit.items)
@@ -195,6 +284,7 @@ def update_audit(db: Session, audit: Audit, data: AuditUpdate) -> Audit:
 
     db.commit()
     db.refresh(audit)
+    populate_audit_objectives(audit)
     return audit
 
 
@@ -222,6 +312,7 @@ def complete_audit(db: Session, audit: Audit) -> Audit:
         audit.score = 0.0
         db.commit()
         db.refresh(audit)
+        populate_audit_objectives(audit)
         return audit
 
     total = len(items)
@@ -233,4 +324,5 @@ def complete_audit(db: Session, audit: Audit) -> Audit:
 
     db.commit()
     db.refresh(audit)
+    populate_audit_objectives(audit)
     return audit

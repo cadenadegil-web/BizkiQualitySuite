@@ -17,6 +17,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import { useAudit } from '../../hooks/useAudits';
 import { completeAudit, downloadAuditPDF, updateAudit } from '../../services/audits.service';
 import { AuditItem } from '../../types/audit';
+import { classifyAuditItemObjective, getAuditObjectives, getObjectiveColor } from '../../utils/auditObjectives';
 import { useState } from 'react';
 
 const RESULT_CONFIG: Record<string, { label: string; color: 'success' | 'error' | 'warning' | 'default'; icon: React.ReactNode }> = {
@@ -225,7 +226,7 @@ export default function AuditDetailPage() {
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ backgroundColor: '#1976d2' }}>
-                  {['#', 'Norma', 'Punto de Control', 'Resultado', 'Comentario', 'Acción'].map(h => (
+                  {['#', 'Objetivo de Medición', 'Norma', 'Punto de Control', 'Resultado', 'Comentario', 'Acción'].map(h => (
                     <TableCell key={h} sx={{ color: 'white', fontWeight: 'bold' }}>{h}</TableCell>
                   ))}
                 </TableRow>
@@ -233,6 +234,8 @@ export default function AuditDetailPage() {
               <TableBody>
                 {audit.items.map((item, idx) => {
                   const cfg = item.result ? RESULT_CONFIG[item.result] : null;
+                  const itemObj = item.objective || classifyAuditItemObjective(item.norm, item.control_point);
+                  const objColor = getObjectiveColor(itemObj);
                   return (
                     <TableRow
                       key={item.id}
@@ -245,6 +248,20 @@ export default function AuditDetailPage() {
                       }}
                     >
                       <TableCell sx={{ fontWeight: 700, color: '#1976d2', width: 40 }}>{idx + 1}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', width: 170 }}>
+                        <Chip
+                          label={itemObj}
+                          size="small"
+                          sx={{
+                            backgroundColor: objColor.bg,
+                            color: objColor.color,
+                            border: `1px solid ${objColor.border}`,
+                            fontWeight: 600,
+                            fontSize: '0.72rem',
+                            height: 22,
+                          }}
+                        />
+                      </TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 12, color: '#555' }}>{item.norm}</TableCell>
                       <TableCell sx={{ fontWeight: 500 }}>{item.control_point}</TableCell>
                       <TableCell>

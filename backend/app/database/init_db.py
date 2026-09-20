@@ -91,12 +91,33 @@ def create_database() -> None:
             conn.execute(text("ALTER TABLE areas ADD CONSTRAINT uq_areas_name_plant UNIQUE (name, plant);"))
             conn.execute(text("ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_id UUID REFERENCES audits(id) ON DELETE SET NULL;"))
             conn.execute(text("ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_item_id UUID REFERENCES audit_items(id) ON DELETE SET NULL;"))
+            conn.execute(text("ALTER TABLE audits ADD COLUMN IF NOT EXISTS measurement_objective VARCHAR(255);"))
+            conn.execute(text("ALTER TABLE audit_items ADD COLUMN IF NOT EXISTS objective VARCHAR(100);"))
     except Exception as e:
         print(f"Aviso durante migración de esquema: {e}")
 
     # Seed Norms, Catalogs and Admin
     db = SessionLocal()
     try:
+        from app.services.audit_service import classify_item_objective
+        # Auto-clasificar ítems existentes que aún no tengan objetivo
+        unclassified_items = db.query(AuditItem).filter((AuditItem.objective.is_(None)) | (AuditItem.objective == "")).all()
+        if unclassified_items:
+            for item in unclassified_items:
+                item.objective = classify_item_objective(item.norm, item.control_point)
+            db.commit()
+
+        # Poblar measurement_objective en auditorías existentes
+        audits_to_update = db.query(Audit).filter((Audit.measurement_objective.is_(None)) | (Audit.measurement_objective == "")).all()
+        for audit in audits_to_update:
+            objs = []
+            for it in audit.items:
+                if it.objective and it.objective not in objs:
+                    objs.append(it.objective)
+            if objs:
+                audit.measurement_objective = ", ".join(objs)
+        db.commit()
+
         count = db.query(Norm).count()
         if count == 0:
             for n in INITIAL_NORMS:
