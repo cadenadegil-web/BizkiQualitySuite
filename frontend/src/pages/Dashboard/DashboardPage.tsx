@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Box,
   Card,
@@ -12,8 +12,12 @@ import {
   TableRow,
   Paper,
   CircularProgress,
+  Alert,
+  AlertTitle,
+  Button,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { getDashboard } from "../../services/dashboard.service";
 import type { DashboardResponse } from "../../types/dashboard";
@@ -23,25 +27,26 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadDashboard() {
-      setLoading(true);
-      try {
-        const data = await getDashboard();
-        setDashboard(data);
-      } catch (err: any) {
-        setError(
-          err?.response?.data?.detail ||
-            err?.message ||
-            "Error cargando datos del dashboard."
-        );
-      } finally {
-        setLoading(false);
-      }
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getDashboard();
+      setDashboard(data);
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.detail ||
+          err?.message ||
+          "Error cargando datos del dashboard."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    loadDashboard();
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   return (
     <>
@@ -61,11 +66,39 @@ export default function DashboardPage() {
       </Typography>
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            py: 10,
+            gap: 2,
+          }}
+        >
           <CircularProgress />
+          <Typography variant="body2" color="text.secondary">
+            Cargando indicadores del Dashboard... (si el servidor está en reposo, puede demorar hasta 1 minuto)
+          </Typography>
         </Box>
       ) : error ? (
-        <Typography color="error">{error}</Typography>
+        <Box sx={{ maxWidth: 700, my: 3 }}>
+          <Alert
+            severity="warning"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                startIcon={<RefreshIcon />}
+                onClick={loadDashboard}
+              >
+                Reintentar
+              </Button>
+            }
+          >
+            <AlertTitle>No se pudieron obtener los datos</AlertTitle>
+            {error}
+          </Alert>
+        </Box>
       ) : dashboard ? (
         <>
           <Box sx={{ mb: 4 }}>
