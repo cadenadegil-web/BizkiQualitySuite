@@ -60,19 +60,53 @@ def get_capa(
 
 
 # =====================================================
-# GET ALL
+# ACCESS CHECK & GET ALL
 # =====================================================
+
+from sqlalchemy import func, or_
+from app.models.finding import Finding
+from app.models.user import User
+from app.security.auth import is_supervisor_or_admin
+
+
+def can_access_capa(capa: CAPA, user: User) -> bool:
+    if is_supervisor_or_admin(user):
+        return True
+    name_clean = (user.full_name or "").strip().lower()
+    user_clean = (user.username or "").strip().lower()
+    resp_clean = (capa.responsible or "").strip().lower()
+    if resp_clean in (name_clean, user_clean):
+        return True
+    if capa.finding:
+        if capa.finding.user_id and str(capa.finding.user_id) == str(user.id):
+            return True
+        finding_resp = (capa.finding.responsible or "").strip().lower()
+        if finding_resp in (name_clean, user_clean):
+            return True
+    return False
+
 
 def get_all_capas(
     db: Session,
+    current_user: User | None = None,
 ) -> list[CAPA]:
+    query = db.query(CAPA).filter(CAPA.active.is_(True))
 
-    return (
-        db.query(CAPA)
-        .filter(CAPA.active.is_(True))
-        .order_by(CAPA.created_at.desc())
-        .all()
-    )
+    if current_user and not is_supervisor_or_admin(current_user):
+        name_clean = (current_user.full_name or "").strip().lower()
+        user_clean = (current_user.username or "").strip().lower()
+        filters = [
+            CAPA.finding.has(Finding.user_id == current_user.id)
+        ]
+        if name_clean:
+            filters.append(func.lower(CAPA.responsible) == name_clean)
+            filters.append(CAPA.finding.has(func.lower(Finding.responsible) == name_clean))
+        if user_clean:
+            filters.append(func.lower(CAPA.responsible) == user_clean)
+            filters.append(CAPA.finding.has(func.lower(Finding.responsible) == user_clean))
+        query = query.filter(or_(*filters))
+
+    return query.order_by(CAPA.created_at.desc()).all()
 
 
 # =====================================================

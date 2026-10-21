@@ -3,6 +3,7 @@ import {
   Box,
   Card,
   CardContent,
+  Chip,
   Typography,
   Table,
   TableBody,
@@ -15,14 +16,19 @@ import {
   Alert,
   AlertTitle,
   Button,
+  Stack,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 import { getDashboard } from "../../services/dashboard.service";
 import type { DashboardResponse } from "../../types/dashboard";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function DashboardPage() {
+  const { role, username } = useAuth();
+  const isSupervisorOrAdmin = ['administrador', 'admin', 'coordinador de calidad', 'coordinador', 'supervisor de calidad', 'supervisora', 'supervisor', 'supervisor de producción'].includes((role || '').trim().toLowerCase());
+
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,20 +56,46 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Typography
-        variant="h4"
-        gutterBottom
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        flexWrap="wrap"
+        gap={1}
+        sx={{ mb: 3 }}
       >
-        Dashboard
-      </Typography>
-
-      <Typography
-        variant="body1"
-        color="text.secondary"
-        sx={{ mb: 4 }}
-      >
-        Bienvenido a Bizki Quality Suite
-      </Typography>
+        <Box>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+              Dashboard
+            </Typography>
+            <Chip
+              label={
+                isSupervisorOrAdmin
+                  ? "Supervisión Global (Toda la Planta)"
+                  : `Mis Métricas (${username || "Auditor"})`
+              }
+              color={isSupervisorOrAdmin ? "primary" : "info"}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {isSupervisorOrAdmin
+              ? "Indicadores consolidados y estado de calidad de toda la planta"
+              : "Indicadores de cumplimiento y seguimiento de sus no conformidades"}
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={loadDashboard}
+          disabled={loading}
+        >
+          Actualizar
+        </Button>
+      </Stack>
 
       {loading ? (
         <Box

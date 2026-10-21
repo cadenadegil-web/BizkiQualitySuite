@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.audit import Audit, AuditItem
@@ -8,7 +9,9 @@ from app.models.finding import Finding
 from app.models.area import Area
 from app.models.classification import Classification
 from app.models.status import Status
+from app.models.user import User
 from app.schemas.audit import AuditCreate, AuditUpdate
+from app.security.auth import is_supervisor_or_admin
 
 
 # =====================================================
@@ -93,12 +96,34 @@ def populate_audit_objectives(audit: Audit) -> Audit:
 # CRUD Auditoría
 # =====================================================
 
-def create_audit(db: Session, data: AuditCreate) -> Audit:
+def can_access_audit(audit: Audit, user: User) -> bool:
+    """
+    Verifica si un usuario tiene permiso para acceder o modificar una auditoría.
+    Los supervisores y administradores tienen acceso global.
+    Los demás usuarios solo pueden acceder a sus propias auditorías.
+    """
+    if is_supervisor_or_admin(user):
+        return True
+    if audit.user_id and str(audit.user_id) == str(user.id):
+        return True
+    name_clean = (user.full_name or "").strip().lower()
+    user_clean = (user.username or "").strip().lower()
+    auditor_clean = (audit.auditor or "").strip().lower()
+    return auditor_clean in (name_clean, user_clean)
+
+
+def create_audit(db: Session, data: AuditCreate, current_user: User | None = None) -> Audit:
+    auditor_name = data.auditor.strip() if data.auditor and data.auditor.strip() else (
+        current_user.full_name if (current_user and current_user.full_name) else (current_user.username if current_user else "Auditor")
+    )
+    user_id = current_user.id if current_user else data.user_id
+
     audit = Audit(
         code=generate_audit_code(db),
         audit_date=data.audit_date,
         shift=data.shift,
-        auditor=data.auditor,
+        auditor=auditor_name,
+        user_id=user_id,
         measurement_objective=data.measurement_objective,
         observations=data.observations,
         area_id=data.area_id,
@@ -132,13 +157,20 @@ def create_audit(db: Session, data: AuditCreate) -> Audit:
     return audit
 
 
-def get_audits(db: Session) -> list[Audit]:
-    audits = (
-        db.query(Audit)
-        .filter(Audit.active.is_(True))
-        .order_by(Audit.audit_date.desc())
-        .all()
-    )
+def get_audits(db: Session, current_user: User | None = None) -> list[Audit]:
+    query = db.query(Audit).filter(Audit.active.is_(True))
+
+    if current_user and not is_supervisor_or_admin(current_user):
+        name_clean = (current_user.full_name or "").strip().lower()
+        user_clean = (current_user.username or "").strip().lower()
+        user_filters = [Audit.user_id == current_user.id]
+        if name_clean:
+            user_filters.append(func.lower(Audit.auditor) == name_clean)
+        if user_clean:
+            user_filters.append(func.lower(Audit.auditor) == user_clean)
+        query = query.filter(or_(*user_filters))
+
+    audits = query.order_by(Audit.audit_date.desc()).all()
     for a in audits:
         populate_audit_objectives(a)
     return audits
@@ -155,13 +187,20 @@ def get_audit(db: Session, audit_id: UUID) -> Audit | None:
     return audit
 
 
-def get_audits_by_date(db: Session, target_date: date) -> list[Audit]:
-    audits = (
-        db.query(Audit)
-        .filter(Audit.audit_date == target_date, Audit.active.is_(True))
-        .order_by(Audit.created_at)
-        .all()
-    )
+def get_audits_by_date(db: Session, target_date: date, current_user: User | None = None) -> list[Audit]:
+    query = db.query(Audit).filter(Audit.audit_date == target_date, Audit.active.is_(True))
+
+    if current_user and not is_supervisor_or_admin(current_user):
+        name_clean = (current_user.full_name or "").strip().lower()
+        user_clean = (current_user.username or "").strip().lower()
+        user_filters = [Audit.user_id == current_user.id]
+        if name_clean:
+            user_filters.append(func.lower(Audit.auditor) == name_clean)
+        if user_clean:
+            user_filters.append(func.lower(Audit.auditor) == user_clean)
+        query = query.filter(or_(*user_filters))
+
+    audits = query.order_by(Audit.created_at).all()
     for a in audits:
         populate_audit_objectives(a)
     return audits
@@ -235,6 +274,7 @@ def sync_audit_findings(db: Session, audit: Audit) -> None:
                     status_id=open_status.id if open_status else None,
                     audit_id=audit.id,
                     audit_item_id=item.id,
+                    user_id=audit.user_id,
                     created_at=datetime.now(),
                     active=True,
                 )

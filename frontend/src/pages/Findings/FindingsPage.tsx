@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Snackbar,
   Stack,
@@ -16,6 +17,7 @@ import FindingTable from "./FindingTable";
 import FindingModal, { FindingFormData } from "./FindingModal";
 
 import { useFindings } from "../../hooks/useFindings";
+import { useAuth } from "../../hooks/useAuth";
 import { createFinding } from "../../services/findings.service";
 import {
   exportFindingsToPDF,
@@ -23,6 +25,8 @@ import {
 } from "../../services/export.service";
 
 export default function FindingsPage() {
+  const { role } = useAuth();
+  const isSupervisorOrAdmin = ['administrador', 'admin', 'coordinador de calidad', 'coordinador', 'supervisor de calidad', 'supervisora', 'supervisor', 'supervisor de producción'].includes((role || '').trim().toLowerCase());
   const { data, isLoading, error, refetch } = useFindings();
 
   const [openModal, setOpenModal] = useState(false);
@@ -126,9 +130,25 @@ export default function FindingsPage() {
         gap={1}
         sx={{ mb: 3, width: "100%" }}
       >
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          No Conformidades
-        </Typography>
+        <Box>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+              No Conformidades
+            </Typography>
+            <Chip
+              label={isSupervisorOrAdmin ? "Supervisión Global (Planta)" : "Mis Hallazgos"}
+              color={isSupervisorOrAdmin ? "primary" : "info"}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {isSupervisorOrAdmin
+              ? "Supervisión consolidada de todas las no conformidades de la planta"
+              : "Listado de no conformidades reportadas por su usuario o asignadas a usted"}
+          </Typography>
+        </Box>
 
         <Stack direction="row" gap={1} flexWrap="wrap">
 

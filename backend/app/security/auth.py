@@ -44,23 +44,32 @@ def get_current_user(
     return user
 
 
+SUPERVISOR_ADMIN_ROLES = {
+    "administrador",
+    "admin",
+    "coordinador de calidad",
+    "coordinador",
+    "supervisor de calidad",
+    "supervisora",
+    "supervisor",
+    "supervisor de producción",
+}
+
+
+def is_supervisor_or_admin(user: User) -> bool:
+    """
+    Retorna True si el usuario tiene un rol con privilegios de supervisión
+    o administración para ver todos los registros del sistema.
+    """
+    if not user or not user.role:
+        return False
+    return (user.role or "").strip().lower() in SUPERVISOR_ADMIN_ROLES
+
+
 def get_current_admin_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
-    role = (current_user.role or "").strip().lower()
-
-    allowed_roles = {
-        "administrador",
-        "admin",
-        "coordinador de calidad",
-        "coordinador",
-        "supervisor de calidad",
-        "supervisora",
-        "supervisor",
-        "supervisor de producción",
-    }
-
-    if role not in allowed_roles:
+    if not is_supervisor_or_admin(current_user):
         raise HTTPException(
             status_code=403,
             detail="Permiso denegado. Se requiere rol de administrador, coordinador o supervisor.",

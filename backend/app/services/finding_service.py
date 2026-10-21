@@ -1,13 +1,16 @@
 from datetime import datetime
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.finding import Finding
 from app.models.area import Area
 from app.models.classification import Classification
 from app.models.status import Status
+from app.models.user import User
 from app.schemas.finding import FindingCreate
 from app.schemas.finding import FindingUpdate
+from app.security.auth import is_supervisor_or_admin
 
 
 # =====================================================
@@ -28,6 +31,22 @@ def generate_code(db: Session) -> str:
     return f"HBPM-{year}-{total:06}"
 
 
+def can_access_finding(finding: Finding, user: User) -> bool:
+    """
+    Verifica si el usuario puede acceder o modificar el hallazgo.
+    Supervisores y administradores tienen acceso global.
+    Los demás usuarios acceden a sus propios hallazgos o asignaciones.
+    """
+    if is_supervisor_or_admin(user):
+        return True
+    if finding.user_id and str(finding.user_id) == str(user.id):
+        return True
+    name_clean = (user.full_name or "").strip().lower()
+    user_clean = (user.username or "").strip().lower()
+    resp_clean = (finding.responsible or "").strip().lower()
+    return resp_clean in (name_clean, user_clean)
+
+
 # =====================================================
 # Crear Hallazgo
 # =====================================================
@@ -35,6 +54,7 @@ def generate_code(db: Session) -> str:
 def create_finding(
     db: Session,
     finding: FindingCreate,
+    current_user: User | None = None,
 ):
     area_id = finding.area_id
     if not area_id:
@@ -54,18 +74,23 @@ def create_finding(
         if first_status:
             status_id = first_status.id
 
+    user_id = finding.user_id or (current_user.id if current_user else None)
+    responsible = finding.responsible
+    if not responsible and current_user:
+        responsible = current_user.full_name or current_user.username
+
     new_finding = Finding(
         code=generate_code(db),
 
         area_id=area_id,
         classification_id=classification_id,
         status_id=status_id,
-        user_id=finding.user_id,
+        user_id=user_id,
 
         process=finding.process,
         finding_type=finding.finding_type,
         description=finding.description,
-        responsible=finding.responsible,
+        responsible=responsible,
         created_at=finding.created_at if finding.created_at else datetime.now(),
 
         active=True,
@@ -84,13 +109,21 @@ def create_finding(
 
 def get_findings(
     db: Session,
+    current_user: User | None = None,
 ):
+    query = db.query(Finding).filter(Finding.active.is_(True))
 
-    return (
-        db.query(Finding)
-        .filter(Finding.active.is_(True))
-        .all()
-    )
+    if current_user and not is_supervisor_or_admin(current_user):
+        name_clean = (current_user.full_name or "").strip().lower()
+        user_clean = (current_user.username or "").strip().lower()
+        user_filters = [Finding.user_id == current_user.id]
+        if name_clean:
+            user_filters.append(func.lower(Finding.responsible) == name_clean)
+        if user_clean:
+            user_filters.append(func.lower(Finding.responsible) == user_clean)
+        query = query.filter(or_(*user_filters))
+
+    return query.all()
 
 
 # =====================================================

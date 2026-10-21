@@ -19,6 +19,7 @@ import { createAudit, getAudit, updateAudit } from '../../services/audits.servic
 import { getCatalogItems } from '../../services/catalogs.service';
 import { AuditItemCreate } from '../../types/audit';
 import { classifyAuditItemObjective, getObjectiveColor } from '../../utils/auditObjectives';
+import { useAuth } from '../../hooks/useAuth';
 
 type ResultType = 'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null;
 
@@ -32,6 +33,7 @@ export default function AuditFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEditing = Boolean(id);
   const navigate = useNavigate();
+  const { username } = useAuth();
 
   const [loadingAudit, setLoadingAudit] = useState(isEditing);
   const [auditCode, setAuditCode] = useState('');
@@ -49,6 +51,9 @@ export default function AuditFormPage() {
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
+    if (!isEditing && username) {
+      setAuditor(prev => prev || username);
+    }
     getCatalogItems('areas').then(setAreas).catch(() => {});
     getCatalogItems('norms').then(data => {
       const activeNorms = data.filter(n => n.active);

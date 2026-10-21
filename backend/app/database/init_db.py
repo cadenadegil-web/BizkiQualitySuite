@@ -92,6 +92,7 @@ def create_database() -> None:
             conn.execute(text("ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_id UUID REFERENCES audits(id) ON DELETE SET NULL;"))
             conn.execute(text("ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_item_id UUID REFERENCES audit_items(id) ON DELETE SET NULL;"))
             conn.execute(text("ALTER TABLE audits ADD COLUMN IF NOT EXISTS measurement_objective VARCHAR(255);"))
+            conn.execute(text("ALTER TABLE audits ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;"))
             conn.execute(text("ALTER TABLE audit_items ADD COLUMN IF NOT EXISTS objective VARCHAR(100);"))
     except Exception as e:
         print(f"Aviso durante migración de esquema: {e}")

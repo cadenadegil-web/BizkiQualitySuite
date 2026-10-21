@@ -51,6 +51,7 @@ class AuditBase(BaseModel):
     measurement_objective: Optional[str] = None
     observations: Optional[str] = None
     area_id: UUID
+    user_id: Optional[UUID] = None
 
 
 class AuditCreate(AuditBase):
@@ -64,6 +65,7 @@ class AuditUpdate(BaseModel):
     measurement_objective: Optional[str] = None
     observations: Optional[str] = None
     area_id: Optional[UUID] = None
+    user_id: Optional[UUID] = None
     items: Optional[list[AuditItemCreate]] = None
 
 
@@ -75,6 +77,7 @@ class AuditResponse(AuditBase):
     active: bool
     created_at: datetime
     updated_at: datetime
+    user_id: Optional[UUID] = None
     area: Optional[AreaResponse] = None
     items: list[AuditItemResponse] = []
     objectives: list[str] = []

@@ -12,6 +12,7 @@ from app.database.base import Base
 if TYPE_CHECKING:
     from app.models.area import Area
     from app.models.finding import Finding
+    from app.models.user import User
 
 
 class Audit(Base):
@@ -41,9 +42,11 @@ class Audit(Base):
     
     # FK
     area_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("areas.id"), nullable=False)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     
     # Relations
     area: Mapped["Area"] = relationship("Area", back_populates="audits", lazy="joined")
+    user: Mapped["User | None"] = relationship("User", lazy="joined")
     items: Mapped[list["AuditItem"]] = relationship("AuditItem", back_populates="audit", cascade="all, delete-orphan", lazy="selectin", order_by="AuditItem.order")
 
     def __repr__(self) -> str:

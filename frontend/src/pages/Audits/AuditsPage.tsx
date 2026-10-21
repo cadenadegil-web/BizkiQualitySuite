@@ -16,12 +16,15 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 
 import { useAudits } from '../../hooks/useAudits';
+import { useAuth } from '../../hooks/useAuth';
 import { completeAudit, deleteAudit, downloadAuditPDF, downloadDailyReportPDF } from '../../services/audits.service';
 import { Audit } from '../../types/audit';
 import { getAuditObjectives, getObjectiveColor } from '../../utils/auditObjectives';
 
 export default function AuditsPage() {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const isSupervisorOrAdmin = ['administrador', 'admin', 'coordinador de calidad', 'coordinador', 'supervisor de calidad', 'supervisora', 'supervisor', 'supervisor de producción'].includes((role || '').trim().toLowerCase());
   const { data, isLoading, error, refetch } = useAudits();
 
   const [dailyDialogOpen, setDailyDialogOpen] = useState(false);
@@ -224,9 +227,20 @@ export default function AuditsPage() {
     <Box sx={{ width: '100%' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1} sx={{ mb: 3 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>Auditorías</Typography>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>Auditorías</Typography>
+            <Chip
+              label={isSupervisorOrAdmin ? "Supervisión Global (Planta)" : "Mis Auditorías"}
+              color={isSupervisorOrAdmin ? "primary" : "info"}
+              size="small"
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+          </Stack>
           <Typography variant="body2" color="text.secondary">
-            Registro de auditorías BPM e ISO del proceso productivo
+            {isSupervisorOrAdmin
+              ? "Supervisión y control de todas las auditorías registradas en la planta"
+              : "Registro y control de auditorías asignadas o realizadas por su usuario"}
           </Typography>
         </Box>
         <Stack direction="row" gap={1} flexWrap="wrap">

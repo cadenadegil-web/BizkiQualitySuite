@@ -4,6 +4,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.crud.capa import (
+    can_access_capa,
     create_capa as crud_create_capa,
     delete_capa as crud_delete_capa,
     get_all_capas,
@@ -14,6 +15,7 @@ from app.crud.capa import (
 )
 
 from app.models.capa import CAPA
+from app.models.user import User
 from app.schemas.capa import (
     CAPACreate,
     CAPAUpdate,
@@ -70,9 +72,10 @@ def create_capa(
 
 def get_capas(
     db: Session,
+    current_user: User | None = None,
 ):
 
-    return get_all_capas(db)
+    return get_all_capas(db, current_user=current_user)
 
 
 # =====================================================
