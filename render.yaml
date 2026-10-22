@@ -14,7 +14,7 @@ services:
       - key: ALGORITHM
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
-        value: "60"
+        value: "720"
       - key: DATABASE_URL
         sync: false # Deberás pegar tu URL de Supabase en el panel de Render
       - key: SECRET_KEY

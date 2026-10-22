@@ -22,6 +22,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (
+      error.response?.status === 401 &&
+      !error.config?.url?.includes("/auth/login")
+    ) {
+      localStorage.removeItem("token");
+      window.dispatchEvent(new Event("auth:expired"));
+    } else if (
       error.code === "ECONNABORTED" ||
       error.message?.toLowerCase().includes("timeout")
     ) {

@@ -52,21 +52,39 @@ export function AuthProvider({
       localStorage.getItem("token");
 
     if (storedToken) {
-      setToken(storedToken);
-
       try {
         const payload = JSON.parse(
           atob(storedToken.split(".")[1])
         );
-        setRole(payload.role ?? null);
-        setUsername(payload.sub ?? null);
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          localStorage.removeItem("token");
+          setToken(null);
+          setRole(null);
+          setUsername(null);
+        } else {
+          setToken(storedToken);
+          setRole(payload.role ?? null);
+          setUsername(payload.sub ?? null);
+        }
       } catch {
+        localStorage.removeItem("token");
+        setToken(null);
         setRole(null);
         setUsername(null);
       }
     }
 
     setLoading(false);
+
+    const handleExpired = () => {
+      localStorage.removeItem("token");
+      setToken(null);
+      setRole(null);
+      setUsername(null);
+    };
+
+    window.addEventListener("auth:expired", handleExpired);
+    return () => window.removeEventListener("auth:expired", handleExpired);
   }, []);
 
   async function signIn(
