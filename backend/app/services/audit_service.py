@@ -188,7 +188,28 @@ def get_audit(db: Session, audit_id: UUID) -> Audit | None:
 
 
 def get_audits_by_date(db: Session, target_date: date, current_user: User | None = None) -> list[Audit]:
-    query = db.query(Audit).filter(Audit.audit_date == target_date, Audit.active.is_(True))
+    return get_audits_for_report(db, start_date=target_date, end_date=target_date, current_user=current_user)
+
+
+def get_audits_for_report(
+    db: Session,
+    start_date: date,
+    end_date: date,
+    area_id: UUID | None = None,
+    current_user: User | None = None,
+) -> list[Audit]:
+    query = (
+        db.query(Audit)
+        .outerjoin(Area, Audit.area_id == Area.id)
+        .filter(
+            Audit.audit_date >= start_date,
+            Audit.audit_date <= end_date,
+            Audit.active.is_(True),
+        )
+    )
+
+    if area_id:
+        query = query.filter(Audit.area_id == area_id)
 
     if current_user and not is_supervisor_or_admin(current_user):
         name_clean = (current_user.full_name or "").strip().lower()
@@ -200,7 +221,7 @@ def get_audits_by_date(db: Session, target_date: date, current_user: User | None
             user_filters.append(func.lower(Audit.auditor) == user_clean)
         query = query.filter(or_(*user_filters))
 
-    audits = query.order_by(Audit.created_at).all()
+    audits = query.order_by(Area.name.asc(), Audit.audit_date.asc(), Audit.created_at.asc()).all()
     for a in audits:
         populate_audit_objectives(a)
     return audits

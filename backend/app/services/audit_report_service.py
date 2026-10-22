@@ -227,58 +227,119 @@ def _generate_audit_pdf_reportlab(audit: Audit) -> bytes:
     buffer.close()
     return pdf_bytes
 
-def _generate_daily_report_pdf_reportlab(audits: list[Audit], report_date: date) -> bytes:
+def _generate_daily_report_pdf_reportlab(
+    audits: list[Audit],
+    report_date: date,
+    end_date: date | None = None,
+    area_name: str | None = None,
+) -> bytes:
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2.5*cm, bottomMargin=2.5*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=1.5*cm, leftMargin=1.5*cm, topMargin=2.5*cm, bottomMargin=2.5*cm)
     styles = getSampleStyleSheet()
     
     title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], textColor=colors.HexColor("#1976D2"), alignment=TA_CENTER)
     subtitle_style = ParagraphStyle('SubTitleStyle', parent=styles['Heading2'], textColor=colors.HexColor("#1976D2"))
+    sub3_style = ParagraphStyle('Sub3Style', parent=styles['Heading3'], textColor=colors.HexColor("#1565C0"), fontSize=11)
     normal_style = styles['Normal']
+    cell_style = ParagraphStyle('CellStyle', parent=normal_style, fontSize=8.5, leading=11)
     
     elements = []
     
-    date_str = report_date.strftime("%d/%m/%Y")
+    is_range = bool(end_date and end_date != report_date)
+    date_str = (
+        f"{report_date.strftime('%d/%m/%Y')} al {end_date.strftime('%d/%m/%Y')}"
+        if is_range and end_date
+        else report_date.strftime("%d/%m/%Y")
+    )
+    if area_name:
+        report_title = f"INFORME DE AUDITORÍAS POR ÁREA — {area_name.upper()}"
+    elif is_range:
+        report_title = "INFORME CONSOLIDADO DE AUDITORÍAS POR ÁREA"
+    else:
+        report_title = "INFORME DIARIO DE AUDITORÍAS"
     
     # Portada
     elements.append(Spacer(1, 3*cm))
-    elements.append(Paragraph("<b>INFORME DIARIO DE AUDITORÍAS</b>", title_style))
-    elements.append(Spacer(1, 1.5*cm))
-    elements.append(Paragraph(f"<b>Fecha:</b> {date_str}", ParagraphStyle('C', parent=normal_style, alignment=TA_CENTER, fontSize=14)))
+    elements.append(Paragraph(f"<b>{report_title}</b>", title_style))
+    elements.append(Spacer(1, 1.2*cm))
+    elements.append(Paragraph(f"<b>Período / Fecha:</b> {date_str}", ParagraphStyle('C', parent=normal_style, alignment=TA_CENTER, fontSize=13)))
+    elements.append(Spacer(1, 0.4*cm))
+    elements.append(Paragraph(f"<b>Área evaluada:</b> {area_name or 'Todas las áreas'}", ParagraphStyle('CArea', parent=normal_style, alignment=TA_CENTER, fontSize=12)))
     elements.append(Spacer(1, 2*cm))
     elements.append(Paragraph("<b>MDH Quality Suite</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER)))
-    elements.append(Spacer(1, 4*cm))
+    elements.append(Spacer(1, 3.5*cm))
     elements.append(Paragraph(f"<b>Auditorías registradas:</b> {len(audits)}", ParagraphStyle('A', parent=normal_style, alignment=TA_CENTER)))
     elements.append(PageBreak())
     
     # Introduccion
     elements.append(Paragraph("<b>1. Introducción</b>", subtitle_style))
-    elements.append(Paragraph(f"El presente informe consolida los resultados de todas las auditorías llevadas a cabo durante la jornada del {date_str}. Su objetivo es presentar un panorama global del nivel de cumplimiento normativo.", normal_style))
+    elements.append(Paragraph(f"El presente informe consolida los resultados de las auditorías llevadas a cabo durante el período {date_str}{' en el área de ' + area_name if area_name else ''}. Su objetivo es presentar un panorama integral del nivel de cumplimiento normativo por área y fecha.", normal_style))
     elements.append(Spacer(1, 0.5*cm))
     
     elements.append(Paragraph("<b>2. Objetivos y Alcance</b>", subtitle_style))
-    elements.append(Paragraph("<b>Objetivos:</b> Proporcionar una visión integral de los hallazgos del día, consolidar indicadores gráficos y promover la toma de decisiones.", normal_style))
-    elements.append(Paragraph("<b>Alcance:</b> El informe abarca todas las áreas productivas y operativas auditadas en todos los turnos registrados durante esta fecha.", normal_style))
+    elements.append(Paragraph("<b>Objetivos:</b> Proporcionar una visión consolidada por área y fechas evaluadas dentro del período, consolidar indicadores gráficos y promover la toma de decisiones.", normal_style))
+    elements.append(Paragraph(f"<b>Alcance:</b> {'Área ' + area_name if area_name else 'Todas las áreas productivas y operativas auditadas'} en las fechas registradas durante el período ({date_str}).", normal_style))
     elements.append(Spacer(1, 0.5*cm))
     
     # Resumen
     elements.append(Paragraph("<b>3. Información General Consolidada</b>", subtitle_style))
-    summary_data = [["Código", "Área", "Objetivo", "Auditor", "Turno", "Puntaje", "NC", "Estado"]]
+
+    # 3.1 Consolidado por Área con múltiples fechas
+    area_groups: dict[str, list[Audit]] = {}
+    for au in audits:
+        a_label = au.area.name if au.area else "Sin Área"
+        area_groups.setdefault(a_label, []).append(au)
+
+    elements.append(Paragraph("<b>3.1 Consolidado por Área y Fechas Evaluadas</b>", sub3_style))
+    area_summary_data = [["Área", "Cant.", "Fechas Evaluadas en el Período", "Promedio", "Total NC"]]
+    for a_label, au_list in area_groups.items():
+        unique_dates = sorted({au.audit_date for au in au_list if au.audit_date})
+        dates_formatted = ", ".join(d.strftime("%d/%m/%Y") for d in unique_dates)
+        scored = [au.score for au in au_list if au.score is not None]
+        avg_score = f"{(sum(scored) / len(scored)):.1f}%" if scored else "---"
+        total_nc = sum(sum(1 for it in au.items if it.result == "NO_CONFORME") for au in au_list)
+        area_summary_data.append([
+            Paragraph(f"<b>{a_label}</b>", cell_style),
+            str(len(au_list)),
+            Paragraph(dates_formatted, cell_style),
+            avg_score,
+            str(total_nc),
+        ])
+
+    t_areas = Table(area_summary_data, colWidths=[3.5*cm, 1.5*cm, 7.5*cm, 2.5*cm, 2*cm], repeatRows=1)
+    t_areas.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1565C0")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(t_areas)
+    elements.append(Spacer(1, 0.6*cm))
+
+    # 3.2 Listado detallado por Área y Fecha
+    elements.append(Paragraph("<b>3.2 Detalle de Auditorías por Área y Fecha</b>", sub3_style))
+    summary_data = [["Código", "Fecha", "Área", "Objetivo", "Auditor", "Turno", "Puntaje", "NC", "Estado"]]
     for audit in audits:
-        area_name = (audit.area.name if audit.area else "---")[:16]
-        obj_name = (audit.measurement_objective or "General")[:16]
+        a_name = (audit.area.name if audit.area else "---")[:15]
+        au_date_str = audit.audit_date.strftime("%d/%m/%Y") if audit.audit_date else "---"
+        obj_name = (audit.measurement_objective or "General")[:14]
         score = f"{audit.score:.1f}%" if audit.score is not None else "---"
         nc = str(sum(1 for it in audit.items if it.result == "NO_CONFORME"))
         status = "Completada" if audit.status == "COMPLETADA" else "Pendiente"
-        summary_data.append([audit.code, area_name, obj_name, audit.auditor[:15], audit.shift, score, nc, status])
+        summary_data.append([audit.code, au_date_str, a_name, obj_name, audit.auditor[:14], audit.shift, score, nc, status])
         
-    t = Table(summary_data)
+    t = Table(summary_data, repeatRows=1)
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1976D2")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
     ]))
     elements.append(t)
@@ -332,7 +393,9 @@ def _generate_daily_report_pdf_reportlab(audits: list[Audit], report_date: date)
         # Detalles
         elements.append(Paragraph("<b>5. Detalle de Auditorías</b>", subtitle_style))
         for audit in audits:
-            elements.append(Paragraph(f"<b>{audit.code} — Detalle</b>", ParagraphStyle('SubSub', parent=normal_style, textColor=colors.HexColor("#1976D2"), fontSize=12)))
+            au_area_lbl = audit.area.name if audit.area else "---"
+            au_date_lbl = audit.audit_date.strftime("%d/%m/%Y") if audit.audit_date else "---"
+            elements.append(Paragraph(f"<b>{audit.code} — {au_area_lbl} ({au_date_lbl}) — Detalle</b>", ParagraphStyle('SubSub', parent=normal_style, textColor=colors.HexColor("#1976D2"), fontSize=12)))
             elements.append(Spacer(1, 0.3*cm))
             items_data = [["#", "Norma", "Punto de Control", "Resultado", "Comentario"]]
             for item in audit.items:
@@ -624,9 +687,14 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         with open(pdf_path, "rb") as f:
             return f.read()
 
-def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
+def generate_daily_report_pdf(
+    audits: list[Audit],
+    report_date: date,
+    end_date: date | None = None,
+    area_name: str | None = None,
+) -> bytes:
     if not _pdflatex_available():
-        return _generate_daily_report_pdf_reportlab(audits, report_date)
+        return _generate_daily_report_pdf_reportlab(audits, report_date, end_date=end_date, area_name=area_name)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Generar grafico global de conformidades
@@ -693,14 +761,21 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
         doc.preamble.append(NoEscape(r"\renewcommand{\footrulewidth}{0.3pt}"))
 
         # Portada
-        date_str = report_date.strftime("%d/%m/%Y")
+        is_range = bool(end_date and end_date != report_date)
+        date_str = (
+            f"{report_date.strftime('%d/%m/%Y')} al {end_date.strftime('%d/%m/%Y')}"
+            if is_range and end_date
+            else report_date.strftime("%d/%m/%Y")
+        )
+        area_title = area_name or "Todas las áreas"
         doc.append(NoEscape(r"\begin{titlepage}"))
         doc.append(NoEscape(r"\begin{center}"))
         doc.append(NoEscape(r"\vspace*{3cm}"))
         doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[0.5cm]"))
-        doc.append(NoEscape(r"{\LARGE\textbf{\textcolor{mdh_blue}{INFORME DIARIO DE AUDITOR\'IAS}}}\\[0.5cm]"))
+        doc.append(NoEscape(r"{\LARGE\textbf{\textcolor{mdh_blue}{INFORME CONSOLIDADO DE AUDITOR\'IAS}}}\\[0.5cm]"))
         doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[1.5cm]"))
-        doc.append(NoEscape(rf"{{\Large Fecha de Reporte: {date_str}}}\\[2cm]"))
+        doc.append(NoEscape(rf"{{\Large Período de Reporte: {date_str}}}\\[0.6cm]"))
+        doc.append(NoEscape(rf"{{\large Área Evaluada: {area_title}}}\\[2cm]"))
         doc.append(NoEscape(r"\textbf{MDH Quality Suite}\\[0.5cm]"))
         doc.append(NoEscape(r"\vfill"))
         doc.append(NoEscape(rf"Cantidad de Auditorías Registradas: {len(audits)}"))
@@ -713,20 +788,21 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
 
         # 1. Introduccion
         doc.append(NoEscape(r"\section{Introducción}"))
-        doc.append(NoEscape("El presente informe consolida los resultados de todas las auditorías de procesos y calidad llevadas a cabo durante la jornada del " + date_str + ". Su objetivo es presentar a la gerencia un panorama global del nivel de cumplimiento normativo y resaltar las desviaciones (No Conformidades) que requieren acciones correctivas urgentes."))
+        doc.append(NoEscape("El presente informe consolida los resultados de las auditorías de procesos y calidad llevadas a cabo durante el período " + date_str + ". Su objetivo es presentar a la gerencia un panorama integral del nivel de cumplimiento normativo por área y fechas evaluadas."))
         
         # 2. Objetivos y Alcance
         doc.append(NoEscape(r"\section{Objetivos y Alcance}"))
-        doc.append(NoEscape(r"\textbf{Objetivos:}\\ Proporcionar una visión integral de los hallazgos del día, consolidar indicadores gráficos y promover la toma de decisiones basada en los resultados agregados.\\\vspace{0.5cm}"))
-        doc.append(NoEscape(r"\textbf{Alcance:}\\ El informe abarca todas las áreas productivas y operativas auditadas en todos los turnos registrados durante esta fecha."))
+        doc.append(NoEscape(r"\textbf{Objetivos:}\\ Proporcionar una visión integral de los hallazgos por área y fecha, consolidar indicadores gráficos y promover la toma de decisiones basada en los resultados agregados.\\\vspace{0.5cm}"))
+        doc.append(NoEscape(rf"\textbf{{Alcance:}}\\ El informe abarca el área ({area_title}) y todos los turnos registrados durante el período ({date_str})."))
         
         # 3. Info General (Resumen)
         doc.append(NoEscape(r"\section{Información General Consolidada}"))
         doc.append(NoEscape(
-            r"""\begin{tabular}{@{}p{2cm} p{3cm} p{2.5cm} p{1.5cm} p{1.5cm} p{1.5cm} p{1.5cm}@{}}
+            r"""\begin{tabular}{@{}p{2.2cm} p{2cm} p{2.8cm} p{2.5cm} p{1.4cm} p{1.4cm} p{1cm} p{1.5cm}@{}}
             \toprule
             \rowcolor{mdh_blue}
             \textcolor{white}{\textbf{Código}} &
+            \textcolor{white}{\textbf{Fecha}} &
             \textcolor{white}{\textbf{Área}} &
             \textcolor{white}{\textbf{Auditor}} &
             \textcolor{white}{\textbf{Turno}} &
@@ -736,12 +812,13 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
             \midrule"""
         ))
         for audit in audits:
-            area_name = (audit.area.name if audit.area else "---")[:20]
+            a_name = (audit.area.name if audit.area else "---")[:20]
+            au_date = audit.audit_date.strftime("%d/%m/%Y") if audit.audit_date else "---"
             score = f"{audit.score:.1f}\\%" if audit.score is not None else "---"
             nc = sum(1 for it in audit.items if it.result == "NO_CONFORME")
             status = "Completada" if audit.status == "COMPLETADA" else "Pendiente"
             doc.append(NoEscape(
-                rf"""{audit.code} & {area_name} & {audit.auditor[:20]} & {audit.shift} & {score} & {nc} & {status} \\\\
+                rf"""{audit.code} & {au_date} & {a_name} & {audit.auditor[:18]} & {audit.shift} & {score} & {nc} & {status} \\\\
                 \midrule"""
             ))
         doc.append(NoEscape(r"\bottomrule"))

@@ -6,12 +6,13 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
+from app.models.area import Area
 from app.models.user import User
 from app.schemas.audit import AuditCreate, AuditResponse, AuditUpdate
 from app.security.auth import get_current_user
 from app.services.audit_service import (
     can_access_audit, complete_audit, create_audit, delete_audit,
-    get_audit, get_audits, get_audits_by_date, update_audit,
+    get_audit, get_audits, get_audits_by_date, get_audits_for_report, update_audit,
 )
 from app.services.audit_report_service import (
     generate_audit_pdf, generate_daily_report_pdf,
@@ -39,16 +40,51 @@ def list_all(
 
 @router.get("/reports/daily")
 def daily_report(
-    report_date: date = Query(default=None, description="Fecha YYYY-MM-DD"),
+    report_date: date | None = Query(default=None, description="Fecha única YYYY-MM-DD"),
+    start_date: date | None = Query(default=None, description="Fecha inicio YYYY-MM-DD"),
+    end_date: date | None = Query(default=None, description="Fecha fin YYYY-MM-DD"),
+    area_id: UUID | None = Query(default=None, description="ID del Área (opcional)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    target = report_date or date.today()
-    audits = get_audits_by_date(db, target, current_user=current_user)
+    s_date = start_date or report_date or date.today()
+    e_date = end_date or start_date or report_date or date.today()
+    if s_date > e_date:
+        s_date, e_date = e_date, s_date
+
+    area_name: str | None = None
+    if area_id:
+        area_obj = db.query(Area).filter(Area.id == area_id).first()
+        if area_obj:
+            area_name = area_obj.name
+
+    audits = get_audits_for_report(
+        db,
+        start_date=s_date,
+        end_date=e_date,
+        area_id=area_id,
+        current_user=current_user,
+    )
     if not audits:
-        raise HTTPException(status_code=404, detail=f"No hay auditorías disponibles para la fecha {target}")
-    pdf_bytes = generate_daily_report_pdf(audits, target)
-    filename = f"informe_diario_{target}.pdf"
+        period_msg = f"la fecha {s_date}" if s_date == e_date else f"el período {s_date} a {e_date}"
+        area_msg = f" en el área '{area_name}'" if area_name else ""
+        raise HTTPException(
+            status_code=404,
+            detail=f"No hay auditorías disponibles para {period_msg}{area_msg}.",
+        )
+
+    pdf_bytes = generate_daily_report_pdf(
+        audits,
+        report_date=s_date,
+        end_date=e_date,
+        area_name=area_name,
+    )
+    slug_area = f"_{area_name.lower().replace(' ', '_')}" if area_name else ""
+    filename = (
+        f"informe_auditorias{slug_area}_{s_date}.pdf"
+        if s_date == e_date
+        else f"informe_auditorias{slug_area}_{s_date}_al_{e_date}.pdf"
+    )
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

@@ -40,15 +40,67 @@ export async function downloadAuditPDF(id: string, code: string): Promise<void> 
   URL.revokeObjectURL(url);
 }
 
-export async function downloadDailyReportPDF(date: string): Promise<void> {
-  const res = await api.get('/audits/reports/daily', {
-    params: { report_date: date },
-    responseType: 'blob',
-  });
-  const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `informe_diario_${date}.pdf`;
-  a.click();
-  URL.revokeObjectURL(url);
+export interface ReportFilterOptions {
+  reportDate?: string;
+  startDate?: string;
+  endDate?: string;
+  areaId?: string;
+  areaName?: string;
+}
+
+export async function downloadDailyReportPDF(
+  optionsOrDate: string | ReportFilterOptions
+): Promise<void> {
+  const params: Record<string, string> = {};
+  let filename = 'informe_auditorias.pdf';
+
+  if (typeof optionsOrDate === 'string') {
+    params.report_date = optionsOrDate;
+    filename = `informe_diario_${optionsOrDate}.pdf`;
+  } else {
+    if (optionsOrDate.startDate) params.start_date = optionsOrDate.startDate;
+    if (optionsOrDate.endDate) params.end_date = optionsOrDate.endDate;
+    if (optionsOrDate.reportDate && !optionsOrDate.startDate) {
+      params.report_date = optionsOrDate.reportDate;
+    }
+    if (optionsOrDate.areaId) params.area_id = optionsOrDate.areaId;
+
+    const areaSlug = optionsOrDate.areaName
+      ? `_${optionsOrDate.areaName.toLowerCase().replace(/\s+/g, '_')}`
+      : '';
+    const s = optionsOrDate.startDate || optionsOrDate.reportDate || 'fecha';
+    const e = optionsOrDate.endDate || s;
+    filename =
+      s === e
+        ? `informe_auditorias${areaSlug}_${s}.pdf`
+        : `informe_auditorias${areaSlug}_${s}_al_${e}.pdf`;
+  }
+
+  try {
+    const res = await api.get('/audits/reports/daily', {
+      params,
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err: any) {
+    if (err?.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const parsed = JSON.parse(text);
+        if (parsed?.detail) {
+          throw new Error(parsed.detail);
+        }
+      } catch (parseErr: any) {
+        if (parseErr instanceof Error && parseErr.message !== 'Unexpected token') {
+          throw parseErr;
+        }
+      }
+    }
+    throw err;
+  }
 }
