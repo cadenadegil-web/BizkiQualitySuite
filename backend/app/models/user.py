@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 class User(Base):
     """
-    Usuarios del sistema Bizki Quality Suite.
+    Usuarios del sistema MDH Quality Suite.
 
     Roles sugeridos:
 

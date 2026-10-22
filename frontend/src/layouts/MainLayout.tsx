@@ -153,7 +153,7 @@ export default function MainLayout({ children }: { children?: React.ReactNode })
 
         <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 0.25, alignItems: collapsed ? "center" : "flex-start" }}>
           <Typography variant="h6" sx={{ fontWeight: "bold", display: collapsed ? "none" : "block" }}>
-            Bizki
+            MDH
           </Typography>
 
           <Typography variant="body2" color="text.secondary" sx={{ display: collapsed ? "none" : "block" }}>

@@ -78,7 +78,7 @@ app.include_router(audits.router)
 @app.get("/")
 def root():
     return {
-        "empresa": "Bizcocho Bizki",
+        "empresa": "Bizcocho MDH",
         "sistema": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "estado": "Operativo",

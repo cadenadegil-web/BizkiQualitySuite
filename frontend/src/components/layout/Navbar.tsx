@@ -82,7 +82,7 @@ export default function Sidebar() {
             fontWeight: 700,
           }}
         >
-          Bizki
+          MDH
         </Typography>
 
         <Typography

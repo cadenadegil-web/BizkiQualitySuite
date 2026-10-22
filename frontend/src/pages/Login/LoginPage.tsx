@@ -100,7 +100,7 @@ export default function LoginPage() {
             gutterBottom
             sx={{ fontWeight: 700 }}
           >
-            Bizki Quality Suite
+            MDH Quality Suite
           </Typography>
 
           <Typography

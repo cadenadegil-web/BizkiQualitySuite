@@ -73,7 +73,7 @@ def _generate_audit_pdf_reportlab(audit: Audit) -> bytes:
     elements.append(Paragraph(f"<b>Código:</b> {audit.code}", ParagraphStyle('C', parent=normal_style, alignment=TA_CENTER, fontSize=14)))
     elements.append(Paragraph(f"<b>Fecha:</b> {_fmt_date(audit.audit_date)}", ParagraphStyle('D', parent=normal_style, alignment=TA_CENTER, fontSize=12)))
     elements.append(Spacer(1, 2*cm))
-    elements.append(Paragraph("<b>Bizki Quality Suite</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER)))
+    elements.append(Paragraph("<b>MDH Quality Suite</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER)))
     elements.append(Spacer(1, 4*cm))
     elements.append(Paragraph(f"<b>Auditor:</b> {audit.auditor}", ParagraphStyle('A', parent=normal_style, alignment=TA_CENTER)))
     elements.append(PageBreak())
@@ -246,7 +246,7 @@ def _generate_daily_report_pdf_reportlab(audits: list[Audit], report_date: date)
     elements.append(Spacer(1, 1.5*cm))
     elements.append(Paragraph(f"<b>Fecha:</b> {date_str}", ParagraphStyle('C', parent=normal_style, alignment=TA_CENTER, fontSize=14)))
     elements.append(Spacer(1, 2*cm))
-    elements.append(Paragraph("<b>Bizki Quality Suite</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER)))
+    elements.append(Paragraph("<b>MDH Quality Suite</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER)))
     elements.append(Spacer(1, 4*cm))
     elements.append(Paragraph(f"<b>Auditorías registradas:</b> {len(audits)}", ParagraphStyle('A', parent=normal_style, alignment=TA_CENTER)))
     elements.append(PageBreak())
@@ -443,7 +443,7 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         ]:
             doc.packages.append(Package(pkg, options=opts) if opts else Package(pkg))
 
-        doc.preamble.append(NoEscape(r"\definecolor{bizki_blue}{RGB}{25,118,210}"))
+        doc.preamble.append(NoEscape(r"\definecolor{mdh_blue}{RGB}{25,118,210}"))
         doc.preamble.append(NoEscape(r"\definecolor{conf_green}{RGB}{46,125,50}"))
         doc.preamble.append(NoEscape(r"\definecolor{nc_red}{RGB}{198,40,40}"))
         doc.preamble.append(NoEscape(r"\definecolor{obs_orange}{RGB}{230,81,0}"))
@@ -451,7 +451,7 @@ def generate_audit_pdf(audit: Audit) -> bytes:
 
         doc.preamble.append(NoEscape(r"\pagestyle{fancy}"))
         doc.preamble.append(NoEscape(r"\fancyhf{}"))
-        doc.preamble.append(NoEscape(r"\fancyhead[L]{\textcolor{bizki_blue}{\textbf{Bizki Quality Suite}}}"))
+        doc.preamble.append(NoEscape(r"\fancyhead[L]{\textcolor{mdh_blue}{\textbf{MDH Quality Suite}}}"))
         doc.preamble.append(NoEscape(r"\fancyhead[R]{\textcolor{gray}{\small Informe de Auditoría}}"))
         doc.preamble.append(NoEscape(r"\fancyfoot[C]{\textcolor{gray}{\small Página \thepage}}"))
         doc.preamble.append(NoEscape(r"\renewcommand{\headrulewidth}{0.5pt}"))
@@ -461,12 +461,12 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         doc.append(NoEscape(r"\begin{titlepage}"))
         doc.append(NoEscape(r"\begin{center}"))
         doc.append(NoEscape(r"\vspace*{3cm}"))
-        doc.append(NoEscape(r"{\color{bizki_blue}\rule{\linewidth}{1.5pt}}\\[0.5cm]"))
-        doc.append(NoEscape(r"{\LARGE\textbf{\textcolor{bizki_blue}{INFORME DE AUDITOR\'IA BPM}}}\\[0.5cm]"))
-        doc.append(NoEscape(r"{\color{bizki_blue}\rule{\linewidth}{1.5pt}}\\[1.5cm]"))
+        doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[0.5cm]"))
+        doc.append(NoEscape(r"{\LARGE\textbf{\textcolor{mdh_blue}{INFORME DE AUDITOR\'IA BPM}}}\\[0.5cm]"))
+        doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[1.5cm]"))
         doc.append(NoEscape(rf"{{\Large Código: {audit.code}}}\\[0.5cm]"))
         doc.append(NoEscape(rf"{{\large Fecha: {_fmt_date(audit.audit_date)}}}\\[2cm]"))
-        doc.append(NoEscape(r"\textbf{Bizki Quality Suite}\\[0.5cm]"))
+        doc.append(NoEscape(r"\textbf{MDH Quality Suite}\\[0.5cm]"))
         doc.append(NoEscape(r"\vfill"))
         doc.append(NoEscape(rf"Auditor: {audit.auditor}"))
         doc.append(NoEscape(r"\end{center}"))
@@ -494,7 +494,7 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         doc.append(NoEscape(
             rf"""\begin{{tabular}}{{@{{}}p{{0.48\linewidth}}p{{0.48\linewidth}}@{{}}}}
             \rowcolor{{header_blue}}
-            \multicolumn{{2}}{{l}}{{\textbf{{\textcolor{{bizki_blue}}{{Datos Generales}}}}}}\\
+            \multicolumn{{2}}{{l}}{{\textbf{{\textcolor{{mdh_blue}}{{Datos Generales}}}}}}\\
             \textbf{{Código:}} & {audit.code} \\
             \textbf{{Fecha:}} & {_fmt_date(audit.audit_date)} \\
             \textbf{{Turno:}} & {audit.shift} \\
@@ -532,7 +532,7 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         doc.append(NoEscape(
             r"""\begin{longtable}{@{}c p{2.2cm} p{7cm} p{2.5cm} p{3cm}@{}}
             \toprule
-            \rowcolor{bizki_blue}
+            \rowcolor{mdh_blue}
             \textcolor{white}{\textbf{\#}} &
             \textcolor{white}{\textbf{Norma}} &
             \textcolor{white}{\textbf{Punto de Control}} &
@@ -678,7 +678,7 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
         ]:
             doc.packages.append(Package(pkg, options=opts) if opts else Package(pkg))
 
-        doc.preamble.append(NoEscape(r"\definecolor{bizki_blue}{RGB}{25,118,210}"))
+        doc.preamble.append(NoEscape(r"\definecolor{mdh_blue}{RGB}{25,118,210}"))
         doc.preamble.append(NoEscape(r"\definecolor{conf_green}{RGB}{46,125,50}"))
         doc.preamble.append(NoEscape(r"\definecolor{nc_red}{RGB}{198,40,40}"))
         doc.preamble.append(NoEscape(r"\definecolor{obs_orange}{RGB}{230,81,0}"))
@@ -686,7 +686,7 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
         
         doc.preamble.append(NoEscape(r"\pagestyle{fancy}"))
         doc.preamble.append(NoEscape(r"\fancyhf{}"))
-        doc.preamble.append(NoEscape(r"\fancyhead[L]{\textcolor{bizki_blue}{\textbf{Bizki Quality Suite}}}"))
+        doc.preamble.append(NoEscape(r"\fancyhead[L]{\textcolor{mdh_blue}{\textbf{MDH Quality Suite}}}"))
         doc.preamble.append(NoEscape(r"\fancyhead[R]{\textcolor{gray}{\small Informe Diario de Auditorías}}"))
         doc.preamble.append(NoEscape(r"\fancyfoot[C]{\textcolor{gray}{\small Página \thepage}}"))
         doc.preamble.append(NoEscape(r"\renewcommand{\headrulewidth}{0.5pt}"))
@@ -697,11 +697,11 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
         doc.append(NoEscape(r"\begin{titlepage}"))
         doc.append(NoEscape(r"\begin{center}"))
         doc.append(NoEscape(r"\vspace*{3cm}"))
-        doc.append(NoEscape(r"{\color{bizki_blue}\rule{\linewidth}{1.5pt}}\\[0.5cm]"))
-        doc.append(NoEscape(r"{\LARGE\textbf{\textcolor{bizki_blue}{INFORME DIARIO DE AUDITOR\'IAS}}}\\[0.5cm]"))
-        doc.append(NoEscape(r"{\color{bizki_blue}\rule{\linewidth}{1.5pt}}\\[1.5cm]"))
+        doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[0.5cm]"))
+        doc.append(NoEscape(r"{\LARGE\textbf{\textcolor{mdh_blue}{INFORME DIARIO DE AUDITOR\'IAS}}}\\[0.5cm]"))
+        doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[1.5cm]"))
         doc.append(NoEscape(rf"{{\Large Fecha de Reporte: {date_str}}}\\[2cm]"))
-        doc.append(NoEscape(r"\textbf{Bizki Quality Suite}\\[0.5cm]"))
+        doc.append(NoEscape(r"\textbf{MDH Quality Suite}\\[0.5cm]"))
         doc.append(NoEscape(r"\vfill"))
         doc.append(NoEscape(rf"Cantidad de Auditorías Registradas: {len(audits)}"))
         doc.append(NoEscape(r"\end{center}"))
@@ -725,7 +725,7 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
         doc.append(NoEscape(
             r"""\begin{tabular}{@{}p{2cm} p{3cm} p{2.5cm} p{1.5cm} p{1.5cm} p{1.5cm} p{1.5cm}@{}}
             \toprule
-            \rowcolor{bizki_blue}
+            \rowcolor{mdh_blue}
             \textcolor{white}{\textbf{Código}} &
             \textcolor{white}{\textbf{Área}} &
             \textcolor{white}{\textbf{Auditor}} &
@@ -765,7 +765,7 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
             score_str = f"{audit.score:.1f}\\%" if audit.score is not None else "---"
             doc.append(NoEscape(
                 rf"""\begin{{center}}
-                {{\large\textbf{{\textcolor{{bizki_blue}}{{{audit.code} — Detalle}}}}}}
+                {{\large\textbf{{\textcolor{{mdh_blue}}{{{audit.code} — Detalle}}}}}}
                 \end{{center}}
                 \begin{{tabular}}{{@{{}}p{{0.48\linewidth}}p{{0.48\linewidth}}@{{}}}}
                 \textbf{{Área:}} & {area_name} \\\\
@@ -778,7 +778,7 @@ def generate_daily_report_pdf(audits: list[Audit], report_date: date) -> bytes:
             doc.append(NoEscape(
                 r"""\begin{longtable}{@{}c p{2cm} p{6cm} p{2.5cm} p{3cm}@{}}
                 \toprule
-                \rowcolor{bizki_blue}
+                \rowcolor{mdh_blue}
                 \textcolor{white}{\textbf{\#}} &
                 \textcolor{white}{\textbf{Norma}} &
                 \textcolor{white}{\textbf{Punto de Control}} &

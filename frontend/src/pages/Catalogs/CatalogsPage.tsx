@@ -76,7 +76,7 @@ function CustomTabPanel(props: TabPanelProps) {
 
 const DEFAULT_PLANTS = [
   "Molinos del Higuamo",
-  "Bizki",
+  "MDH",
   "Caribbean Cookies Company",
 ];
 
@@ -618,7 +618,7 @@ export default function CatalogsPage() {
                         label={item.plant}
                         size="small"
                         color={
-                          item.plant === "Bizki"
+                          item.plant === "MDH"
                             ? "primary"
                             : item.plant.includes("Higuam") || item.plant.includes("Higuan")
                             ? "secondary"

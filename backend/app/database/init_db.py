@@ -85,7 +85,7 @@ def create_database() -> None:
     try:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE areas ADD COLUMN IF NOT EXISTS plant VARCHAR(100);"))
-            conn.execute(text("UPDATE areas SET plant = 'Bizki' WHERE plant IS NULL;"))
+            conn.execute(text("UPDATE areas SET plant = 'MDH' WHERE plant IS NULL OR plant = 'Bizki';"))
             conn.execute(text("ALTER TABLE areas DROP CONSTRAINT IF EXISTS areas_name_key;"))
             conn.execute(text("ALTER TABLE areas DROP CONSTRAINT IF EXISTS uq_areas_name_plant;"))
             conn.execute(text("ALTER TABLE areas ADD CONSTRAINT uq_areas_name_plant UNIQUE (name, plant);"))
@@ -137,7 +137,7 @@ def create_database() -> None:
             admin = User(
                 full_name="Administrador del Sistema",
                 username="admin",
-                email="admin@bizki.com",
+                email="admin@MDH.com",
                 password_hash=hash_password("admin123"),
                 role="administrador",
                 is_active=True,
