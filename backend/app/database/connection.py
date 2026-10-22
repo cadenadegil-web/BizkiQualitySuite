@@ -22,8 +22,13 @@ else:
 
 engine = create_engine(
     DATABASE_URL,
-    echo=True,
+    echo=False,
     future=True,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    pool_size=5,
+    max_overflow=10,
+    connect_args={"connect_timeout": 10},
 )
 
 SessionLocal = sessionmaker(

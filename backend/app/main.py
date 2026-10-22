@@ -1,6 +1,9 @@
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 
 from app.api import auth
 from app.api import users
@@ -13,13 +16,13 @@ from app.api import audits
 
 from app.core.config import settings
 from app.database.init_db import create_database
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_database()
+    # Ejecutar migraciones y seed en segundo plano para que Uvicorn
+    # abra el puerto $PORT de inmediato en Render sin timeout de despliegue
+    threading.Thread(target=create_database, daemon=True).start()
     yield
 
 
@@ -118,4 +121,4 @@ def diagnostics():
     except Exception as e:
         return {"status": "error", "error": str(e)}
     finally:
-        db.close()
+        db.close()
