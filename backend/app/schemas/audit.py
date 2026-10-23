@@ -48,6 +48,7 @@ class AuditBase(BaseModel):
     audit_date: date
     shift: str
     auditor: str
+    plant: Optional[str] = None
     measurement_objective: Optional[str] = None
     observations: Optional[str] = None
     area_id: UUID
@@ -62,6 +63,7 @@ class AuditUpdate(BaseModel):
     audit_date: Optional[date] = None
     shift: Optional[str] = None
     auditor: Optional[str] = None
+    plant: Optional[str] = None
     measurement_objective: Optional[str] = None
     observations: Optional[str] = None
     area_id: Optional[UUID] = None

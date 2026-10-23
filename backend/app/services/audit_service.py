@@ -89,6 +89,8 @@ def populate_audit_objectives(audit: Audit) -> Audit:
                 objs.append(so)
                 
     audit.objectives = objs
+    if not audit.plant or audit.plant == "Bizki":
+        audit.plant = (audit.area.plant if audit.area and audit.area.plant and audit.area.plant != "Bizki" else "MDH")
     return audit
 
 
@@ -118,11 +120,15 @@ def create_audit(db: Session, data: AuditCreate, current_user: User | None = Non
     )
     user_id = current_user.id if current_user else data.user_id
 
+    area_obj = db.query(Area).filter(Area.id == data.area_id).first()
+    plant_name = (data.plant or "").strip() or (area_obj.plant if area_obj and area_obj.plant else "MDH")
+
     audit = Audit(
         code=generate_audit_code(db),
         audit_date=data.audit_date,
         shift=data.shift,
         auditor=auditor_name,
+        plant=plant_name,
         user_id=user_id,
         measurement_objective=data.measurement_objective,
         observations=data.observations,
@@ -196,6 +202,7 @@ def get_audits_for_report(
     start_date: date,
     end_date: date,
     area_id: UUID | None = None,
+    plant: str | None = None,
     current_user: User | None = None,
 ) -> list[Audit]:
     query = (
@@ -210,6 +217,15 @@ def get_audits_for_report(
 
     if area_id:
         query = query.filter(Audit.area_id == area_id)
+
+    if plant:
+        plant_clean = plant.strip().lower()
+        query = query.filter(
+            or_(
+                func.lower(Audit.plant) == plant_clean,
+                func.lower(Area.plant) == plant_clean,
+            )
+        )
 
     if current_user and not is_supervisor_or_admin(current_user):
         name_clean = (current_user.full_name or "").strip().lower()

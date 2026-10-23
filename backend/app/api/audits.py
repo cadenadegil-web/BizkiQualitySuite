@@ -44,6 +44,7 @@ def daily_report(
     start_date: date | None = Query(default=None, description="Fecha inicio YYYY-MM-DD"),
     end_date: date | None = Query(default=None, description="Fecha fin YYYY-MM-DD"),
     area_id: UUID | None = Query(default=None, description="ID del Área (opcional)"),
+    plant: str | None = Query(default=None, description="Nombre de la Planta (opcional)"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -63,6 +64,7 @@ def daily_report(
         start_date=s_date,
         end_date=e_date,
         area_id=area_id,
+        plant=plant,
         current_user=current_user,
     )
     if not audits:

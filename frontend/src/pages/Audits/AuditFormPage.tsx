@@ -29,6 +29,12 @@ interface FormItem extends AuditItemCreate {
 
 let keyCounter = 0;
 
+const DEFAULT_PLANTS = [
+  'MDH',
+  'Molinos del Higuamo',
+  'Caribbean Cookies Company',
+];
+
 export default function AuditFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEditing = Boolean(id);
@@ -37,7 +43,8 @@ export default function AuditFormPage() {
 
   const [loadingAudit, setLoadingAudit] = useState(isEditing);
   const [auditCode, setAuditCode] = useState('');
-  const [areas, setAreas] = useState<{ id: string; name: string }[]>([]);
+  const [areas, setAreas] = useState<{ id: string; name: string; plant?: string }[]>([]);
+  const [plant, setPlant] = useState('MDH');
   const [areaId, setAreaId] = useState('');
   const [shift, setShift] = useState('Mañana');
   const [auditor, setAuditor] = useState('');
@@ -79,6 +86,7 @@ export default function AuditFormPage() {
       getAudit(id)
         .then(audit => {
           setAuditCode(audit.code);
+          setPlant(audit.plant || audit.area?.plant || 'MDH');
           setAreaId(audit.area_id);
           setShift(audit.shift);
           setAuditor(audit.auditor);
@@ -160,6 +168,7 @@ export default function AuditFormPage() {
   };
 
   const handleSubmit = async () => {
+    if (!plant.trim()) { setSnack({ open: true, message: 'Selecciona o ingresa la planta.', severity: 'error' }); return; }
     if (!areaId) { setSnack({ open: true, message: 'Selecciona un área.', severity: 'error' }); return; }
     if (!auditor.trim()) { setSnack({ open: true, message: 'Ingresa el nombre del auditor.', severity: 'error' }); return; }
     setSubmitting(true);
@@ -167,6 +176,7 @@ export default function AuditFormPage() {
       audit_date: auditDate,
       shift,
       auditor: auditor.trim(),
+      plant: plant.trim(),
       observations: observations.trim() || undefined,
       area_id: areaId,
       items: items.map(({ _key, ...rest }) => rest),
@@ -239,9 +249,42 @@ export default function AuditFormPage() {
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2, color: '#1976d2' }}>Datos Generales</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
             <FormControl fullWidth required>
+              <InputLabel>Planta</InputLabel>
+              <Select
+                value={plant}
+                label="Planta"
+                onChange={e => setPlant(e.target.value)}
+              >
+                {Array.from(
+                  new Set([
+                    ...DEFAULT_PLANTS,
+                    ...areas.map(a => a.plant).filter((p): p is string => Boolean(p && p !== 'Bizki')),
+                  ])
+                ).map(p => (
+                  <MenuItem key={p} value={p}>{p}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth required>
               <InputLabel>Área</InputLabel>
-              <Select value={areaId} label="Área" onChange={e => setAreaId(e.target.value)}>
-                {areas.map(a => <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>)}
+              <Select
+                value={areaId}
+                label="Área"
+                onChange={e => {
+                  const selectedId = e.target.value;
+                  setAreaId(selectedId);
+                  const found = areas.find(a => a.id === selectedId);
+                  if (found?.plant && found.plant !== 'Bizki' && !plant) {
+                    setPlant(found.plant);
+                  }
+                }}
+              >
+                {areas.map(a => (
+                  <MenuItem key={a.id} value={a.id}>
+                    {a.name}{a.plant ? ` (${a.plant === 'Bizki' ? 'MDH' : a.plant})` : ''}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
 

@@ -290,9 +290,10 @@ def _generate_daily_report_pdf_reportlab(
         a_label = au.area.name if au.area else "Sin Área"
         area_groups.setdefault(a_label, []).append(au)
 
-    elements.append(Paragraph("<b>3.1 Consolidado por Área y Fechas Evaluadas</b>", sub3_style))
-    area_summary_data = [["Área", "Cant.", "Fechas Evaluadas en el Período", "Promedio", "Total NC"]]
+    elements.append(Paragraph("<b>3.1 Consolidado por Área, Planta y Fechas Evaluadas</b>", sub3_style))
+    area_summary_data = [["Área", "Planta", "Cant.", "Fechas Evaluadas en el Período", "Promedio", "Total NC"]]
     for a_label, au_list in area_groups.items():
+        plant_label = next((au.plant or (au.area.plant if au.area else None) for au in au_list if au.plant or (au.area and au.area.plant)), "MDH")
         unique_dates = sorted({au.audit_date for au in au_list if au.audit_date})
         dates_formatted = ", ".join(d.strftime("%d/%m/%Y") for d in unique_dates)
         scored = [au.score for au in au_list if au.score is not None]
@@ -300,13 +301,14 @@ def _generate_daily_report_pdf_reportlab(
         total_nc = sum(sum(1 for it in au.items if it.result == "NO_CONFORME") for au in au_list)
         area_summary_data.append([
             Paragraph(f"<b>{a_label}</b>", cell_style),
+            Paragraph(str(plant_label), cell_style),
             str(len(au_list)),
             Paragraph(dates_formatted, cell_style),
             avg_score,
             str(total_nc),
         ])
 
-    t_areas = Table(area_summary_data, colWidths=[3.5*cm, 1.5*cm, 7.5*cm, 2.5*cm, 2*cm], repeatRows=1)
+    t_areas = Table(area_summary_data, colWidths=[3*cm, 3*cm, 1.3*cm, 6*cm, 2.2*cm, 1.8*cm], repeatRows=1)
     t_areas.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1565C0")),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -321,16 +323,17 @@ def _generate_daily_report_pdf_reportlab(
     elements.append(Spacer(1, 0.6*cm))
 
     # 3.2 Listado detallado por Área y Fecha
-    elements.append(Paragraph("<b>3.2 Detalle de Auditorías por Área y Fecha</b>", sub3_style))
-    summary_data = [["Código", "Fecha", "Área", "Objetivo", "Auditor", "Turno", "Puntaje", "NC", "Estado"]]
+    elements.append(Paragraph("<b>3.2 Detalle de Auditorías por Planta, Área y Fecha</b>", sub3_style))
+    summary_data = [["Código", "Planta", "Área", "Fecha", "Objetivo", "Auditor", "Turno", "Puntaje", "NC", "Estado"]]
     for audit in audits:
-        a_name = (audit.area.name if audit.area else "---")[:15]
+        p_name = (audit.plant or (audit.area.plant if audit.area and audit.area.plant else "MDH"))[:16]
+        a_name = (audit.area.name if audit.area else "---")[:14]
         au_date_str = audit.audit_date.strftime("%d/%m/%Y") if audit.audit_date else "---"
-        obj_name = (audit.measurement_objective or "General")[:14]
+        obj_name = (audit.measurement_objective or "General")[:12]
         score = f"{audit.score:.1f}%" if audit.score is not None else "---"
         nc = str(sum(1 for it in audit.items if it.result == "NO_CONFORME"))
         status = "Completada" if audit.status == "COMPLETADA" else "Pendiente"
-        summary_data.append([audit.code, au_date_str, a_name, obj_name, audit.auditor[:14], audit.shift, score, nc, status])
+        summary_data.append([audit.code, p_name, a_name, au_date_str, obj_name, audit.auditor[:13], audit.shift, score, nc, status])
         
     t = Table(summary_data, repeatRows=1)
     t.setStyle(TableStyle([

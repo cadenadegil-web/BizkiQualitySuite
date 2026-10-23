@@ -12,20 +12,36 @@ import {
 } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 
 import { useAudits } from '../../hooks/useAudits';
 import { useAuth } from '../../hooks/useAuth';
-import { completeAudit, deleteAudit, downloadAuditPDF, downloadDailyReportPDF } from '../../services/audits.service';
+import {
+  completeAudit, createAudit, deleteAudit, downloadAuditPDF,
+  downloadDailyReportPDF, updateAudit,
+} from '../../services/audits.service';
 import { getCatalogItems } from '../../services/catalogs.service';
 import { Audit } from '../../types/audit';
 import { getAuditObjectives, getObjectiveColor } from '../../utils/auditObjectives';
 
 type PeriodMode = 'month' | 'range' | 'single';
+
+const DEFAULT_PLANTS = [
+  'MDH',
+  'Molinos del Higuamo',
+  'Caribbean Cookies Company',
+];
+
+function getAuditPlant(row: Audit): string {
+  const p = row.plant || row.area?.plant || 'MDH';
+  return p === 'Bizki' ? 'MDH' : p;
+}
 
 function getMonthRange(yearMonth: string): { start: string; end: string } {
   const [y, m] = yearMonth.split('-').map(Number);
@@ -51,7 +67,7 @@ function formatDateShort(isoDate: string): string {
 
 export default function AuditsPage() {
   const navigate = useNavigate();
-  const { role } = useAuth();
+  const { role, username } = useAuth();
   const isSupervisorOrAdmin = [
     'administrador', 'admin', 'coordinador de calidad', 'coordinador',
     'supervisor de calidad', 'supervisora', 'supervisor', 'supervisor de producción',
@@ -61,19 +77,33 @@ export default function AuditsPage() {
   const currentYearMonth = new Date().toISOString().slice(0, 7);
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const [areas, setAreas] = useState<{ id: string; name: string }[]>([]);
+  const [areas, setAreas] = useState<{ id: string; name: string; plant?: string }[]>([]);
+  const [normsCatalog, setNormsCatalog] = useState<{ norm: string; control_point: string }[]>([]);
 
   // Filtros en pantalla
+  const [tablePlantFilter, setTablePlantFilter] = useState<string>('ALL');
   const [tableAreaFilter, setTableAreaFilter] = useState<string>('ALL');
   const [tableMonthFilter, setTableMonthFilter] = useState<string>('');
 
-  // Estado del diálogo de Informes por Área / Fechas
+  // Estado del modal de Registro / Edición de Auditoría
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
+  const [editingAudit, setEditingAudit] = useState<Audit | null>(null);
+  const [formPlant, setFormPlant] = useState<string>('MDH');
+  const [formAreaId, setFormAreaId] = useState<string>('');
+  const [formShift, setFormShift] = useState<string>('Mañana');
+  const [formDate, setFormDate] = useState<string>(todayStr);
+  const [formAuditor, setFormAuditor] = useState<string>(username || '');
+  const [formObservations, setFormObservations] = useState<string>('');
+  const [savingAudit, setSavingAudit] = useState(false);
+
+  // Estado del diálogo de Informes por Planta / Área / Fechas
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
   const [reportMonth, setReportMonth] = useState<string>(currentYearMonth);
   const [startDate, setStartDate] = useState<string>(getMonthRange(currentYearMonth).start);
   const [endDate, setEndDate] = useState<string>(getMonthRange(currentYearMonth).end);
   const [singleDate, setSingleDate] = useState<string>(todayStr);
+  const [selectedPlant, setSelectedPlant] = useState<string>('ALL');
   const [selectedAreaId, setSelectedAreaId] = useState<string>('ALL');
   const [downloadingReport, setDownloadingReport] = useState(false);
 
@@ -83,12 +113,121 @@ export default function AuditsPage() {
 
   useEffect(() => {
     getCatalogItems('areas')
-      .then((list) => setAreas(list.map((a) => ({ id: a.id, name: a.name }))))
+      .then((list) =>
+        setAreas(
+          list.map((a) => ({
+            id: a.id,
+            name: a.name,
+            plant: a.plant === 'Bizki' ? 'MDH' : a.plant,
+          }))
+        )
+      )
+      .catch(() => {});
+
+    getCatalogItems('norms')
+      .then((list) => {
+        const active = list.filter((n) => n.active);
+        setNormsCatalog(active.map((n) => ({ norm: n.name, control_point: n.description || '' })));
+      })
       .catch(() => {});
   }, []);
 
+  const plantOptions = useMemo(() => {
+    const customPlants = areas
+      .map((a) => a.plant)
+      .filter((p): p is string => Boolean(p && p !== 'Bizki'));
+    const auditPlants = (data ?? [])
+      .map((au) => getAuditPlant(au))
+      .filter(Boolean);
+    return Array.from(new Set([...DEFAULT_PLANTS, ...customPlants, ...auditPlants]));
+  }, [areas, data]);
+
   const showSnack = (message: string, severity: 'success' | 'error') =>
     setSnack({ open: true, message, severity });
+
+  const handleOpenNewModal = () => {
+    setEditingAudit(null);
+    setFormPlant('MDH');
+    setFormAreaId(areas[0]?.id || '');
+    setFormShift('Mañana');
+    setFormDate(todayStr);
+    setFormAuditor(username || '');
+    setFormObservations('');
+    setAuditModalOpen(true);
+  };
+
+  const handleOpenEditModal = (row: Audit) => {
+    setEditingAudit(row);
+    setFormPlant(getAuditPlant(row));
+    setFormAreaId(row.area_id);
+    setFormShift(row.shift || 'Mañana');
+    setFormDate((row.audit_date || todayStr).slice(0, 10));
+    setFormAuditor(row.auditor || username || '');
+    setFormObservations(row.observations || '');
+    setAuditModalOpen(true);
+  };
+
+  const handleSaveAuditFromModal = async (goToChecklist: boolean) => {
+    if (!formPlant.trim()) {
+      showSnack('Selecciona la planta.', 'error');
+      return;
+    }
+    if (!formAreaId) {
+      showSnack('Selecciona un área.', 'error');
+      return;
+    }
+    if (!formAuditor.trim()) {
+      showSnack('Ingresa el nombre del auditor.', 'error');
+      return;
+    }
+
+    setSavingAudit(true);
+    try {
+      if (editingAudit) {
+        const updated = await updateAudit(editingAudit.id, {
+          plant: formPlant.trim(),
+          area_id: formAreaId,
+          shift: formShift,
+          audit_date: formDate,
+          auditor: formAuditor.trim(),
+          observations: formObservations.trim() || undefined,
+        });
+        showSnack('Auditoría actualizada correctamente.', 'success');
+        setAuditModalOpen(false);
+        refetch();
+        if (goToChecklist) {
+          navigate(`/audits/edit/${updated.id}`);
+        }
+      } else {
+        const defaultItems = normsCatalog.map((n, idx) => ({
+          order: idx + 1,
+          norm: n.norm,
+          control_point: n.control_point,
+          result: null,
+          comment: null,
+        }));
+        const created = await createAudit({
+          plant: formPlant.trim(),
+          area_id: formAreaId,
+          shift: formShift,
+          audit_date: formDate,
+          auditor: formAuditor.trim(),
+          observations: formObservations.trim() || undefined,
+          items: defaultItems,
+        });
+        showSnack('Auditoría registrada correctamente.', 'success');
+        setAuditModalOpen(false);
+        refetch();
+        if (goToChecklist) {
+          navigate(`/audits/${created.id}`);
+        }
+      }
+    } catch (e: any) {
+      showSnack(e?.response?.data?.detail || 'Error al guardar la auditoría.', 'error');
+    } finally {
+      setSavingAudit(false);
+    }
+  };
 
   const handleComplete = async (id: string) => {
     if (!confirm('¿Completar la auditoría? Se calcularán puntajes y se generarán hallazgos para no conformidades.')) return;
@@ -130,27 +269,31 @@ export default function AuditsPage() {
     return { start: singleDate, end: singleDate };
   }, [periodMode, reportMonth, startDate, endDate, singleDate]);
 
-  // Vista previa de auditorías agrupadas por Área y Fechas dentro del rango del informe
+  // Vista previa de auditorías agrupadas por Planta, Área y Fechas dentro del rango del informe
   const reportPreviewByArea = useMemo(() => {
     const allAudits = data ?? [];
     const { start, end } = effectiveRange;
     const filtered = allAudits.filter((au) => {
       const d = (au.audit_date || '').slice(0, 10);
       const inDate = d >= start && d <= end;
+      const inPlant = selectedPlant === 'ALL' || getAuditPlant(au) === selectedPlant;
       const inArea = selectedAreaId === 'ALL' || au.area_id === selectedAreaId;
-      return inDate && inArea;
+      return inDate && inPlant && inArea;
     });
 
     const groups: Record<
       string,
-      { areaId: string; areaName: string; count: number; dates: string[]; avgScore: string; ncCount: number }
+      { areaId: string; plantName: string; areaName: string; count: number; dates: string[]; avgScore: string; ncCount: number }
     > = {};
 
     for (const au of filtered) {
+      const pName = getAuditPlant(au);
       const aName = au.area?.name || 'Sin Área';
-      if (!groups[aName]) {
-        groups[aName] = {
+      const key = `${pName}::${aName}`;
+      if (!groups[key]) {
+        groups[key] = {
           areaId: au.area_id,
+          plantName: pName,
           areaName: aName,
           count: 0,
           dates: [],
@@ -158,47 +301,56 @@ export default function AuditsPage() {
           ncCount: 0,
         };
       }
-      groups[aName].count += 1;
+      groups[key].count += 1;
       const d = (au.audit_date || '').slice(0, 10);
-      if (d && !groups[aName].dates.includes(d)) {
-        groups[aName].dates.push(d);
+      if (d && !groups[key].dates.includes(d)) {
+        groups[key].dates.push(d);
       }
-      groups[aName].ncCount += (au.items || []).filter((it) => it.result === 'NO_CONFORME').length;
+      groups[key].ncCount += (au.items || []).filter((it) => it.result === 'NO_CONFORME').length;
     }
 
-    for (const aName of Object.keys(groups)) {
-      groups[aName].dates.sort();
-      const areaAudits = filtered.filter((au) => (au.area?.name || 'Sin Área') === aName && au.score !== null);
+    for (const key of Object.keys(groups)) {
+      groups[key].dates.sort();
+      const groupItem = groups[key];
+      const areaAudits = filtered.filter(
+        (au) =>
+          getAuditPlant(au) === groupItem.plantName &&
+          (au.area?.name || 'Sin Área') === groupItem.areaName &&
+          au.score !== null
+      );
       if (areaAudits.length > 0) {
         const avg = areaAudits.reduce((acc, cur) => acc + (cur.score || 0), 0) / areaAudits.length;
-        groups[aName].avgScore = `${avg.toFixed(1)}%`;
+        groups[key].avgScore = `${avg.toFixed(1)}%`;
       }
     }
 
     return Object.values(groups).sort((a, b) => a.areaName.localeCompare(b.areaName));
-  }, [data, effectiveRange, selectedAreaId]);
+  }, [data, effectiveRange, selectedPlant, selectedAreaId]);
 
   // Filas filtradas en la tabla principal
   const filteredRows = useMemo(() => {
     return (data ?? []).filter((au) => {
+      const matchPlant = tablePlantFilter === 'ALL' || getAuditPlant(au) === tablePlantFilter;
       const matchArea = tableAreaFilter === 'ALL' || au.area_id === tableAreaFilter;
       const matchMonth = !tableMonthFilter || (au.audit_date || '').startsWith(tableMonthFilter);
-      return matchArea && matchMonth;
+      return matchPlant && matchArea && matchMonth;
     });
-  }, [data, tableAreaFilter, tableMonthFilter]);
+  }, [data, tablePlantFilter, tableAreaFilter, tableMonthFilter]);
 
   // Resumen por Área de las filas visibles en pantalla
   const visibleAreaSummary = useMemo(() => {
-    const map: Record<string, { areaId: string; areaName: string; dates: string[]; total: number }> = {};
+    const map: Record<string, { areaId: string; plantName: string; areaName: string; dates: string[]; total: number }> = {};
     for (const au of filteredRows) {
       const name = au.area?.name || 'Sin Área';
-      if (!map[name]) {
-        map[name] = { areaId: au.area_id, areaName: name, dates: [], total: 0 };
+      const pName = getAuditPlant(au);
+      const key = `${pName}::${name}`;
+      if (!map[key]) {
+        map[key] = { areaId: au.area_id, plantName: pName, areaName: name, dates: [], total: 0 };
       }
-      map[name].total += 1;
+      map[key].total += 1;
       const d = (au.audit_date || '').slice(0, 10);
-      if (d && !map[name].dates.includes(d)) {
-        map[name].dates.push(d);
+      if (d && !map[key].dates.includes(d)) {
+        map[key].dates.push(d);
       }
     }
     return Object.values(map)
@@ -215,6 +367,7 @@ export default function AuditsPage() {
         endDate: effectiveRange.end,
         areaId: selectedAreaId === 'ALL' ? undefined : selectedAreaId,
         areaName: selectedAreaObj?.name,
+        plant: selectedPlant === 'ALL' ? undefined : selectedPlant,
       });
       setReportDialogOpen(false);
     } catch (e: any) {
@@ -224,8 +377,9 @@ export default function AuditsPage() {
     }
   };
 
-  const handleQuickAreaReport = (areaId: string) => {
+  const handleQuickAreaReport = (areaId: string, plantName: string) => {
     setSelectedAreaId(areaId);
+    setSelectedPlant(plantName || 'ALL');
     if (tableMonthFilter) {
       setPeriodMode('month');
       setReportMonth(tableMonthFilter);
@@ -237,27 +391,52 @@ export default function AuditsPage() {
   };
 
   const columns: GridColDef[] = [
-    { field: 'code', headerName: 'Código', flex: 1.1, minWidth: 140 },
+    { field: 'code', headerName: 'Código', flex: 1.05, minWidth: 135 },
+    {
+      field: 'plant',
+      headerName: 'Planta',
+      flex: 1,
+      minWidth: 140,
+      valueGetter: (_: unknown, row: Audit) => getAuditPlant(row),
+      renderCell: (params) => {
+        const plantVal = (params.value as string) || 'MDH';
+        return (
+          <Chip
+            label={plantVal}
+            size="small"
+            color={
+              plantVal === 'MDH'
+                ? 'primary'
+                : plantVal.includes('Higuam')
+                ? 'secondary'
+                : 'info'
+            }
+            variant="outlined"
+            sx={{ fontWeight: 600 }}
+          />
+        );
+      },
+    },
     {
       field: 'area',
       headerName: 'Área',
       flex: 0.9,
-      minWidth: 120,
+      minWidth: 115,
       valueGetter: (_: unknown, row: Audit) => row.area?.name ?? '—',
     },
     {
       field: 'audit_date',
       headerName: 'Fecha',
-      flex: 0.9,
-      minWidth: 110,
+      flex: 0.85,
+      minWidth: 105,
       valueFormatter: (value: string) =>
         value ? new Intl.DateTimeFormat('es-ES').format(new Date(value + 'T00:00:00')) : '—',
     },
     {
       field: 'objectives',
       headerName: 'Objetivo de Medición',
-      flex: 1.8,
-      minWidth: 230,
+      flex: 1.7,
+      minWidth: 220,
       valueGetter: (_: unknown, row: Audit) => getAuditObjectives(row).join(', '),
       renderCell: (params) => {
         const objs = getAuditObjectives(params.row);
@@ -306,13 +485,13 @@ export default function AuditsPage() {
         );
       },
     },
-    { field: 'auditor', headerName: 'Auditor', flex: 1.1, minWidth: 130 },
-    { field: 'shift', headerName: 'Turno', flex: 0.8, minWidth: 100 },
+    { field: 'auditor', headerName: 'Auditor', flex: 1.05, minWidth: 125 },
+    { field: 'shift', headerName: 'Turno', flex: 0.75, minWidth: 95 },
     {
       field: 'score',
       headerName: 'Puntaje',
-      flex: 1,
-      minWidth: 120,
+      flex: 0.95,
+      minWidth: 115,
       renderCell: (params) =>
         params.value !== null ? (
           <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -334,7 +513,7 @@ export default function AuditsPage() {
     {
       field: 'status',
       headerName: 'Estado',
-      width: 130,
+      width: 125,
       renderCell: (params) => (
         <Chip
           label={params.value === 'COMPLETADA' ? 'Completada' : 'Pendiente'}
@@ -348,12 +527,18 @@ export default function AuditsPage() {
       headerName: 'Acciones',
       sortable: false,
       filterable: false,
-      width: 180,
+      width: 210,
       renderCell: (params) => (
         <Box>
-          <Tooltip title="Ver detalle">
+          <Tooltip title="Ver detalle / Checklist">
             <IconButton color="primary" onClick={() => navigate(`/audits/${params.row.id}`)}>
               <VisibilityIcon />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Editar Planta / Datos de Auditoría">
+            <IconButton color="info" onClick={() => handleOpenEditModal(params.row as Audit)}>
+              <EditIcon />
             </IconButton>
           </Tooltip>
 
@@ -400,7 +585,7 @@ export default function AuditsPage() {
           </Stack>
           <Typography variant="body2" color="text.secondary">
             {isSupervisorOrAdmin
-              ? "Supervisión y control de todas las auditorías por área y fechas registradas en la planta"
+              ? "Supervisión y control de todas las auditorías por planta, área y fechas registradas"
               : "Registro y control de auditorías asignadas o realizadas por su usuario"}
           </Typography>
         </Box>
@@ -415,6 +600,15 @@ export default function AuditsPage() {
             Informes por Área / Fechas
           </Button>
           <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<PlaylistAddCheckIcon />}
+            onClick={handleOpenNewModal}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Registro en Modal
+          </Button>
+          <Button
             variant="contained"
             color="primary"
             startIcon={<AddIcon />}
@@ -426,16 +620,31 @@ export default function AuditsPage() {
         </Stack>
       </Stack>
 
-      {/* Barra de filtros por Área y Mes + Resumen de Fechas por Área */}
+      {/* Barra de filtros por Planta, Área y Mes + Resumen de Fechas por Área */}
       <Card variant="outlined" sx={{ mb: 2.5, borderRadius: 2 }}>
         <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between">
             <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
               <FilterAltIcon color="primary" fontSize="small" />
               <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                Filtrar por Área y Mes:
+                Filtrar por Planta, Área y Mes:
               </Typography>
-              <FormControl size="small" sx={{ minWidth: 190 }}>
+
+              <FormControl size="small" sx={{ minWidth: 170 }}>
+                <InputLabel>Planta</InputLabel>
+                <Select
+                  label="Planta"
+                  value={tablePlantFilter}
+                  onChange={(e) => setTablePlantFilter(e.target.value)}
+                >
+                  <MenuItem value="ALL">Todas las plantas</MenuItem>
+                  {plantOptions.map((p) => (
+                    <MenuItem key={p} value={p}>{p}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Área</InputLabel>
                 <Select
                   label="Área"
@@ -459,10 +668,11 @@ export default function AuditsPage() {
                 sx={{ width: 170 }}
               />
 
-              {(tableAreaFilter !== 'ALL' || tableMonthFilter !== '') && (
+              {(tablePlantFilter !== 'ALL' || tableAreaFilter !== 'ALL' || tableMonthFilter !== '') && (
                 <Button
                   size="small"
                   onClick={() => {
+                    setTablePlantFilter('ALL');
                     setTableAreaFilter('ALL');
                     setTableMonthFilter('');
                   }}
@@ -482,21 +692,21 @@ export default function AuditsPage() {
             <>
               <Divider sx={{ my: 1.2 }} />
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.8, fontWeight: 600 }}>
-                Resumen por Área (haz clic en un área para descargar su informe con todas sus fechas del mes):
+                Resumen por Planta y Área (haz clic para descargar su informe con todas sus fechas del mes):
               </Typography>
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                 {visibleAreaSummary.map((item) => (
                   <Tooltip
-                    key={item.areaName}
-                    title={`Fechas evaluadas: ${item.dates.map(formatDateShort).join(', ')} — Clic para generar informe PDF de ${item.areaName}`}
+                    key={`${item.plantName}-${item.areaName}`}
+                    title={`Planta: ${item.plantName} · Fechas evaluadas: ${item.dates.map(formatDateShort).join(', ')} — Clic para generar informe PDF`}
                     arrow
                   >
                     <Chip
                       icon={<PictureAsPdfIcon fontSize="small" />}
-                      label={`${item.areaName}: ${item.dates.length} fecha(s) (${item.total} aud.)`}
+                      label={`${item.plantName} · ${item.areaName}: ${item.dates.length} fecha(s) (${item.total} aud.)`}
                       color={item.dates.length > 1 ? 'primary' : 'default'}
                       variant={item.dates.length > 1 ? 'filled' : 'outlined'}
-                      onClick={() => handleQuickAreaReport(item.areaId)}
+                      onClick={() => handleQuickAreaReport(item.areaId, item.plantName)}
                       sx={{ fontWeight: 600, cursor: 'pointer' }}
                     />
                   </Tooltip>
@@ -524,14 +734,131 @@ export default function AuditsPage() {
         />
       </Box>
 
-      {/* Diálogo de Informes por Área y Múltiples Fechas / Mes */}
+      {/* Modal de Registro / Edición de Auditorías (con opciones de Planta, Área, Turno, Fecha y Auditor) */}
+      <Dialog open={auditModalOpen} onClose={() => setAuditModalOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          {editingAudit ? `Editar Auditoría (${editingAudit.code})` : 'Registrar Auditoría'}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.2} sx={{ mt: 0.5 }}>
+            <FormControl fullWidth size="small" required>
+              <InputLabel>Planta</InputLabel>
+              <Select
+                label="Planta"
+                value={formPlant}
+                onChange={(e) => setFormPlant(e.target.value)}
+              >
+                {plantOptions.map((p) => (
+                  <MenuItem key={p} value={p}>{p}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth size="small" required>
+              <InputLabel>Área</InputLabel>
+              <Select
+                label="Área"
+                value={formAreaId}
+                onChange={(e) => setFormAreaId(e.target.value)}
+              >
+                {areas.map((a) => (
+                  <MenuItem key={a.id} value={a.id}>
+                    {a.name}{a.plant ? ` (${a.plant})` : ''}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <FormControl fullWidth size="small" required>
+                <InputLabel>Turno</InputLabel>
+                <Select
+                  label="Turno"
+                  value={formShift}
+                  onChange={(e) => setFormShift(e.target.value)}
+                >
+                  <MenuItem value="Mañana">Mañana</MenuItem>
+                  <MenuItem value="Tarde">Tarde</MenuItem>
+                  <MenuItem value="Noche">Noche</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                label="Fecha de Auditoría"
+                type="date"
+                size="small"
+                fullWidth
+                required
+                value={formDate}
+                onChange={(e) => setFormDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Stack>
+
+            <TextField
+              label="Auditor"
+              size="small"
+              fullWidth
+              required
+              value={formAuditor}
+              onChange={(e) => setFormAuditor(e.target.value)}
+              placeholder="Nombre del auditor responsable"
+            />
+
+            <TextField
+              label="Observaciones generales"
+              size="small"
+              fullWidth
+              multiline
+              rows={2}
+              value={formObservations}
+              onChange={(e) => setFormObservations(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, flexWrap: 'wrap', gap: 1 }}>
+          <Button onClick={() => setAuditModalOpen(false)}>Cancelar</Button>
+          <Button
+            variant="outlined"
+            onClick={() => handleSaveAuditFromModal(true)}
+            disabled={savingAudit}
+            sx={{ textTransform: 'none' }}
+          >
+            {editingAudit ? 'Guardar e ir al Checklist' : 'Registrar y evaluar Checklist'}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => handleSaveAuditFromModal(false)}
+            disabled={savingAudit}
+            sx={{ textTransform: 'none' }}
+          >
+            {savingAudit ? 'Guardando...' : editingAudit ? 'Guardar Cambios' : 'Guardar Registro'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de Informes por Planta, Área y Múltiples Fechas / Mes */}
       <Dialog open={reportDialogOpen} onClose={() => setReportDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>
-          Informe Consolidado por Área y Fechas
+          Informe Consolidado por Planta, Área y Fechas
         </DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2.5} sx={{ mt: 0.5 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+              <FormControl fullWidth size="small">
+                <InputLabel>Planta</InputLabel>
+                <Select
+                  label="Planta"
+                  value={selectedPlant}
+                  onChange={(e) => setSelectedPlant(e.target.value)}
+                >
+                  <MenuItem value="ALL">Todas las plantas</MenuItem>
+                  {plantOptions.map((p) => (
+                    <MenuItem key={p} value={p}>{p}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
               <FormControl fullWidth size="small">
                 <InputLabel>Área a incluir en el informe</InputLabel>
                 <Select
@@ -617,11 +944,11 @@ export default function AuditsPage() {
 
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 700, color: 'primary.main' }}>
-                Vista previa de Áreas y Fechas en el período ({formatDateShort(effectiveRange.start)} al {formatDateShort(effectiveRange.end)}):
+                Vista previa por Planta, Área y Fechas ({formatDateShort(effectiveRange.start)} al {formatDateShort(effectiveRange.end)}):
               </Typography>
               {reportPreviewByArea.length === 0 ? (
                 <Alert severity="info">
-                  No se encontraron auditorías registradas para el área y período seleccionados.
+                  No se encontraron auditorías registradas para la planta, área y período seleccionados.
                 </Alert>
               ) : (
                 <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 260 }}>
@@ -629,6 +956,7 @@ export default function AuditsPage() {
                     <TableHead>
                       <TableRow>
                         <TableCell sx={{ fontWeight: 700 }}>Área</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Planta</TableCell>
                         <TableCell sx={{ fontWeight: 700 }} align="center">Auditorías</TableCell>
                         <TableCell sx={{ fontWeight: 700 }}>Fechas Registradas en el Mes / Período</TableCell>
                         <TableCell sx={{ fontWeight: 700 }} align="center">Promedio</TableCell>
@@ -637,8 +965,11 @@ export default function AuditsPage() {
                     </TableHead>
                     <TableBody>
                       {reportPreviewByArea.map((row) => (
-                        <TableRow key={row.areaName} hover>
+                        <TableRow key={`${row.plantName}-${row.areaName}`} hover>
                           <TableCell sx={{ fontWeight: 600 }}>{row.areaName}</TableCell>
+                          <TableCell>
+                            <Chip label={row.plantName} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600 }} />
+                          </TableCell>
                           <TableCell align="center">{row.count}</TableCell>
                           <TableCell>
                             <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">

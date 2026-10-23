@@ -16,6 +16,7 @@ export interface Audit {
   audit_date: string;   // ISO date string
   shift: string;        // Mañana / Tarde / Noche
   auditor: string;
+  plant?: string | null;
   measurement_objective?: string | null;
   objectives?: string[];
   observations: string | null;
@@ -25,7 +26,7 @@ export interface Audit {
   created_at: string;
   updated_at: string;
   area_id: string;
-  area?: { id: string; name: string; active: boolean };
+  area?: { id: string; name: string; plant?: string | null; active: boolean };
   items: AuditItem[];
 }
 
@@ -42,6 +43,7 @@ export interface AuditCreate {
   audit_date: string;
   shift: string;
   auditor: string;
+  plant?: string;
   measurement_objective?: string;
   observations?: string;
   area_id: string;
@@ -52,9 +54,9 @@ export interface AuditUpdate {
   audit_date?: string;
   shift?: string;
   auditor?: string;
+  plant?: string;
   measurement_objective?: string;
   observations?: string;
   area_id?: string;
   items?: AuditItemCreate[];
 }
-

@@ -110,8 +110,15 @@ def create_database() -> None:
         "ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_id UUID REFERENCES audits(id) ON DELETE SET NULL;",
         "ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_item_id UUID REFERENCES audit_items(id) ON DELETE SET NULL;",
         "ALTER TABLE audits ADD COLUMN IF NOT EXISTS measurement_objective VARCHAR(255);",
+        "ALTER TABLE audits ADD COLUMN IF NOT EXISTS plant VARCHAR(100);",
         "ALTER TABLE audits ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;",
         "ALTER TABLE audit_items ADD COLUMN IF NOT EXISTS objective VARCHAR(100);",
+        """
+        UPDATE audits au
+        SET plant = COALESCE(ar.plant, 'MDH')
+        FROM areas ar
+        WHERE au.area_id = ar.id AND (au.plant IS NULL OR au.plant = '' OR au.plant = 'Bizki');
+        """,
         """
         UPDATE areas a
         SET plant = 'MDH'

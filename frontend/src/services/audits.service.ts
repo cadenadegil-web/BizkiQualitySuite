@@ -46,6 +46,7 @@ export interface ReportFilterOptions {
   endDate?: string;
   areaId?: string;
   areaName?: string;
+  plant?: string;
 }
 
 export async function downloadDailyReportPDF(
@@ -64,7 +65,11 @@ export async function downloadDailyReportPDF(
       params.report_date = optionsOrDate.reportDate;
     }
     if (optionsOrDate.areaId) params.area_id = optionsOrDate.areaId;
+    if (optionsOrDate.plant) params.plant = optionsOrDate.plant;
 
+    const plantSlug = optionsOrDate.plant
+      ? `_${optionsOrDate.plant.toLowerCase().replace(/\s+/g, '_')}`
+      : '';
     const areaSlug = optionsOrDate.areaName
       ? `_${optionsOrDate.areaName.toLowerCase().replace(/\s+/g, '_')}`
       : '';
@@ -72,8 +77,8 @@ export async function downloadDailyReportPDF(
     const e = optionsOrDate.endDate || s;
     filename =
       s === e
-        ? `informe_auditorias${areaSlug}_${s}.pdf`
-        : `informe_auditorias${areaSlug}_${s}_al_${e}.pdf`;
+        ? `informe_auditorias${plantSlug}${areaSlug}_${s}.pdf`
+        : `informe_auditorias${plantSlug}${areaSlug}_${s}_al_${e}.pdf`;
   }
 
   try {
