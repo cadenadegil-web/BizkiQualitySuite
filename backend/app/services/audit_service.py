@@ -89,8 +89,8 @@ def populate_audit_objectives(audit: Audit) -> Audit:
                 objs.append(so)
                 
     audit.objectives = objs
-    if not audit.plant or audit.plant == "Bizki":
-        audit.plant = (audit.area.plant if audit.area and audit.area.plant and audit.area.plant != "Bizki" else "MDH")
+    if not audit.plant:
+        audit.plant = (audit.area.plant if audit.area and audit.area.plant else "MDH")
     return audit
 
 
@@ -128,6 +128,7 @@ def create_audit(db: Session, data: AuditCreate, current_user: User | None = Non
         audit_date=data.audit_date,
         shift=data.shift,
         auditor=auditor_name,
+        area_responsible=(data.area_responsible or "").strip() or None,
         plant=plant_name,
         user_id=user_id,
         measurement_objective=data.measurement_objective,

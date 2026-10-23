@@ -75,8 +75,9 @@ function CustomTabPanel(props: TabPanelProps) {
 }
 
 const DEFAULT_PLANTS = [
-  "Molinos del Higuamo",
   "MDH",
+  "Bizki (Planta de Bizcocho)",
+  "Molinos del Higuamo",
   "Caribbean Cookies Company",
 ];
 

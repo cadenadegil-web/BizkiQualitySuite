@@ -31,6 +31,7 @@ let keyCounter = 0;
 
 const DEFAULT_PLANTS = [
   'MDH',
+  'Bizki (Planta de Bizcocho)',
   'Molinos del Higuamo',
   'Caribbean Cookies Company',
 ];
@@ -48,6 +49,7 @@ export default function AuditFormPage() {
   const [areaId, setAreaId] = useState('');
   const [shift, setShift] = useState('Mañana');
   const [auditor, setAuditor] = useState('');
+  const [areaResponsible, setAreaResponsible] = useState('');
   const [auditDate, setAuditDate] = useState(new Date().toISOString().slice(0, 10));
   const [observations, setObservations] = useState('');
   const [items, setItems] = useState<FormItem[]>([]);
@@ -90,6 +92,7 @@ export default function AuditFormPage() {
           setAreaId(audit.area_id);
           setShift(audit.shift);
           setAuditor(audit.auditor);
+          setAreaResponsible(audit.area_responsible || '');
           setAuditDate(audit.audit_date);
           setObservations(audit.observations || '');
           if (audit.items && audit.items.length > 0) {
@@ -176,6 +179,7 @@ export default function AuditFormPage() {
       audit_date: auditDate,
       shift,
       auditor: auditor.trim(),
+      area_responsible: areaResponsible.trim() || undefined,
       plant: plant.trim(),
       observations: observations.trim() || undefined,
       area_id: areaId,
@@ -312,7 +316,13 @@ export default function AuditFormPage() {
               onChange={e => setAuditor(e.target.value)}
               placeholder="Nombre del auditor"
               required
-              sx={{ gridColumn: { sm: 'span 2' } }}
+            />
+
+            <TextField
+              label="Responsable de Área"
+              value={areaResponsible}
+              onChange={e => setAreaResponsible(e.target.value)}
+              placeholder="Nombre del responsable de área"
             />
 
             <TextField

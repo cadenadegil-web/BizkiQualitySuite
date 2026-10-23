@@ -96,9 +96,12 @@ def _generate_audit_pdf_reportlab(audit: Audit) -> bytes:
     status_str = "Completada" if audit.status == "COMPLETADA" else "Pendiente"
     
     obj_str = (audit.measurement_objective or "General BPM")[:35]
+    plant_str = audit.plant or (audit.area.plant if audit.area and audit.area.plant else "MDH")
+    resp_area_str = audit.area_responsible or "---"
     data = [
         ["Código:", audit.code, "Fecha:", _fmt_date(audit.audit_date)],
-        ["Turno:", audit.shift, "Área:", area_name],
+        ["Planta:", plant_str, "Área:", area_name],
+        ["Turno:", audit.shift, "Resp. de Área:", resp_area_str],
         ["Auditor:", audit.auditor, "Estado:", status_str],
         ["Puntaje:", score_str, "Objetivo:", obj_str]
     ]
@@ -324,16 +327,16 @@ def _generate_daily_report_pdf_reportlab(
 
     # 3.2 Listado detallado por Área y Fecha
     elements.append(Paragraph("<b>3.2 Detalle de Auditorías por Planta, Área y Fecha</b>", sub3_style))
-    summary_data = [["Código", "Planta", "Área", "Fecha", "Objetivo", "Auditor", "Turno", "Puntaje", "NC", "Estado"]]
+    summary_data = [["Código", "Planta", "Área", "Resp. Área", "Fecha", "Auditor", "Turno", "Puntaje", "NC", "Estado"]]
     for audit in audits:
         p_name = (audit.plant or (audit.area.plant if audit.area and audit.area.plant else "MDH"))[:16]
-        a_name = (audit.area.name if audit.area else "---")[:14]
+        a_name = (audit.area.name if audit.area else "---")[:13]
+        resp_area = (audit.area_responsible or "---")[:13]
         au_date_str = audit.audit_date.strftime("%d/%m/%Y") if audit.audit_date else "---"
-        obj_name = (audit.measurement_objective or "General")[:12]
         score = f"{audit.score:.1f}%" if audit.score is not None else "---"
         nc = str(sum(1 for it in audit.items if it.result == "NO_CONFORME"))
         status = "Completada" if audit.status == "COMPLETADA" else "Pendiente"
-        summary_data.append([audit.code, p_name, a_name, au_date_str, obj_name, audit.auditor[:13], audit.shift, score, nc, status])
+        summary_data.append([audit.code, p_name, a_name, resp_area, au_date_str, audit.auditor[:13], audit.shift, score, nc, status])
         
     t = Table(summary_data, repeatRows=1)
     t.setStyle(TableStyle([

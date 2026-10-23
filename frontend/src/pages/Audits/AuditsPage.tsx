@@ -34,13 +34,15 @@ type PeriodMode = 'month' | 'range' | 'single';
 
 const DEFAULT_PLANTS = [
   'MDH',
+  'Bizki (Planta de Bizcocho)',
   'Molinos del Higuamo',
   'Caribbean Cookies Company',
 ];
 
 function getAuditPlant(row: Audit): string {
   const p = row.plant || row.area?.plant || 'MDH';
-  return p === 'Bizki' ? 'MDH' : p;
+  if (p === 'Bizki') return 'Bizki (Planta de Bizcocho)';
+  return p;
 }
 
 function getMonthRange(yearMonth: string): { start: string; end: string } {
@@ -93,6 +95,7 @@ export default function AuditsPage() {
   const [formShift, setFormShift] = useState<string>('Mañana');
   const [formDate, setFormDate] = useState<string>(todayStr);
   const [formAuditor, setFormAuditor] = useState<string>(username || '');
+  const [formAreaResponsible, setFormAreaResponsible] = useState<string>('');
   const [formObservations, setFormObservations] = useState<string>('');
   const [savingAudit, setSavingAudit] = useState(false);
 
@@ -118,7 +121,7 @@ export default function AuditsPage() {
           list.map((a) => ({
             id: a.id,
             name: a.name,
-            plant: a.plant === 'Bizki' ? 'MDH' : a.plant,
+            plant: a.plant === 'Bizki' ? 'Bizki (Planta de Bizcocho)' : a.plant,
           }))
         )
       )
@@ -135,7 +138,7 @@ export default function AuditsPage() {
   const plantOptions = useMemo(() => {
     const customPlants = areas
       .map((a) => a.plant)
-      .filter((p): p is string => Boolean(p && p !== 'Bizki'));
+      .filter((p): p is string => Boolean(p));
     const auditPlants = (data ?? [])
       .map((au) => getAuditPlant(au))
       .filter(Boolean);
@@ -152,6 +155,7 @@ export default function AuditsPage() {
     setFormShift('Mañana');
     setFormDate(todayStr);
     setFormAuditor(username || '');
+    setFormAreaResponsible('');
     setFormObservations('');
     setAuditModalOpen(true);
   };
@@ -163,6 +167,7 @@ export default function AuditsPage() {
     setFormShift(row.shift || 'Mañana');
     setFormDate((row.audit_date || todayStr).slice(0, 10));
     setFormAuditor(row.auditor || username || '');
+    setFormAreaResponsible(row.area_responsible || '');
     setFormObservations(row.observations || '');
     setAuditModalOpen(true);
   };
@@ -190,6 +195,7 @@ export default function AuditsPage() {
           shift: formShift,
           audit_date: formDate,
           auditor: formAuditor.trim(),
+          area_responsible: formAreaResponsible.trim() || undefined,
           observations: formObservations.trim() || undefined,
         });
         showSnack('Auditoría actualizada correctamente.', 'success');
@@ -212,6 +218,7 @@ export default function AuditsPage() {
           shift: formShift,
           audit_date: formDate,
           auditor: formAuditor.trim(),
+          area_responsible: formAreaResponsible.trim() || undefined,
           observations: formObservations.trim() || undefined,
           items: defaultItems,
         });
@@ -391,12 +398,12 @@ export default function AuditsPage() {
   };
 
   const columns: GridColDef[] = [
-    { field: 'code', headerName: 'Código', flex: 1.05, minWidth: 135 },
+    { field: 'code', headerName: 'Código', flex: 1, minWidth: 135 },
     {
       field: 'plant',
       headerName: 'Planta',
-      flex: 1,
-      minWidth: 140,
+      flex: 1.1,
+      minWidth: 150,
       valueGetter: (_: unknown, row: Audit) => getAuditPlant(row),
       renderCell: (params) => {
         const plantVal = (params.value as string) || 'MDH';
@@ -405,7 +412,7 @@ export default function AuditsPage() {
             label={plantVal}
             size="small"
             color={
-              plantVal === 'MDH'
+              plantVal === 'MDH' || plantVal.includes('Bizki')
                 ? 'primary'
                 : plantVal.includes('Higuam')
                 ? 'secondary'
@@ -425,6 +432,13 @@ export default function AuditsPage() {
       valueGetter: (_: unknown, row: Audit) => row.area?.name ?? '—',
     },
     {
+      field: 'area_responsible',
+      headerName: 'Resp. de Área',
+      flex: 1,
+      minWidth: 130,
+      valueGetter: (_: unknown, row: Audit) => row.area_responsible || '—',
+    },
+    {
       field: 'audit_date',
       headerName: 'Fecha',
       flex: 0.85,
@@ -435,8 +449,8 @@ export default function AuditsPage() {
     {
       field: 'objectives',
       headerName: 'Objetivo de Medición',
-      flex: 1.7,
-      minWidth: 220,
+      flex: 1.6,
+      minWidth: 215,
       valueGetter: (_: unknown, row: Audit) => getAuditObjectives(row).join(', '),
       renderCell: (params) => {
         const objs = getAuditObjectives(params.row);
@@ -485,8 +499,8 @@ export default function AuditsPage() {
         );
       },
     },
-    { field: 'auditor', headerName: 'Auditor', flex: 1.05, minWidth: 125 },
-    { field: 'shift', headerName: 'Turno', flex: 0.75, minWidth: 95 },
+    { field: 'auditor', headerName: 'Auditor', flex: 1, minWidth: 125 },
+    { field: 'shift', headerName: 'Turno', flex: 0.75, minWidth: 90 },
     {
       field: 'score',
       headerName: 'Puntaje',
@@ -513,7 +527,7 @@ export default function AuditsPage() {
     {
       field: 'status',
       headerName: 'Estado',
-      width: 125,
+      width: 120,
       renderCell: (params) => (
         <Chip
           label={params.value === 'COMPLETADA' ? 'Completada' : 'Pendiente'}
@@ -536,7 +550,7 @@ export default function AuditsPage() {
             </IconButton>
           </Tooltip>
 
-          <Tooltip title="Editar Planta / Datos de Auditoría">
+          <Tooltip title="Editar Planta / Resp. Área / Datos">
             <IconButton color="info" onClick={() => handleOpenEditModal(params.row as Audit)}>
               <EditIcon />
             </IconButton>
@@ -630,7 +644,7 @@ export default function AuditsPage() {
                 Filtrar por Planta, Área y Mes:
               </Typography>
 
-              <FormControl size="small" sx={{ minWidth: 170 }}>
+              <FormControl size="small" sx={{ minWidth: 195 }}>
                 <InputLabel>Planta</InputLabel>
                 <Select
                   label="Planta"
@@ -734,7 +748,7 @@ export default function AuditsPage() {
         />
       </Box>
 
-      {/* Modal de Registro / Edición de Auditorías (con opciones de Planta, Área, Turno, Fecha y Auditor) */}
+      {/* Modal de Registro / Edición de Auditorías (con opciones de Planta, Área, Responsable de Área, Turno, Fecha y Auditor) */}
       <Dialog open={auditModalOpen} onClose={() => setAuditModalOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>
           {editingAudit ? `Editar Auditoría (${editingAudit.code})` : 'Registrar Auditoría'}
@@ -768,6 +782,15 @@ export default function AuditsPage() {
                 ))}
               </Select>
             </FormControl>
+
+            <TextField
+              label="Responsable de Área"
+              size="small"
+              fullWidth
+              value={formAreaResponsible}
+              onChange={(e) => setFormAreaResponsible(e.target.value)}
+              placeholder="Nombre del responsable del área auditada"
+            />
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <FormControl fullWidth size="small" required>
