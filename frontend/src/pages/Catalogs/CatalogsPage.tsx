@@ -36,6 +36,8 @@ import CategoryIcon from "@mui/icons-material/Category";
 import LabelIcon from "@mui/icons-material/Label";
 import FlagIcon from "@mui/icons-material/Flag";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
+import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+import BadgeIcon from "@mui/icons-material/Badge";
 import TableViewIcon from "@mui/icons-material/TableView";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 
@@ -119,6 +121,8 @@ export default function CatalogsPage() {
       case 1: return "classifications";
       case 2: return "statuses";
       case 3: return "norms";
+      case 4: return "responsibles";
+      case 5: return "auditors";
       default: return "areas";
     }
   };
@@ -131,6 +135,8 @@ export default function CatalogsPage() {
       case 1: return "Clasificaciones";
       case 2: return "Estados";
       case 3: return "Normas de Auditoría";
+      case 4: return "Responsables";
+      case 5: return "Auditores";
       default: return "Catálogo";
     }
   };
@@ -214,12 +220,14 @@ export default function CatalogsPage() {
       return;
     }
 
+    const isPlantCatalogs = currentType === "areas" || currentType === "responsibles" || currentType === "auditors";
+
     setSubmitting(true);
     try {
       if (editingItem) {
         await updateCatalogItem(currentType, editingItem.id, {
           name: nameInput.trim(),
-          plant: currentType === "areas" ? (plantInput || null) : undefined,
+          plant: isPlantCatalogs ? (plantInput || null) : undefined,
           description: currentType === "norms" ? descriptionInput.trim() : undefined,
           category: currentType === "norms" ? categoryInput.trim() : undefined,
           active: activeInput,
@@ -232,7 +240,7 @@ export default function CatalogsPage() {
       } else {
         await createCatalogItem(currentType, {
           name: nameInput.trim(),
-          plant: currentType === "areas" ? (plantInput || undefined) : undefined,
+          plant: isPlantCatalogs ? (plantInput || undefined) : undefined,
           description: currentType === "norms" ? descriptionInput.trim() : undefined,
           category: currentType === "norms" ? categoryInput.trim() : undefined,
           active: activeInput,
@@ -278,7 +286,7 @@ export default function CatalogsPage() {
 
   const filteredItems = items.filter(item => {
     const matchesName = item.name.toLowerCase().includes(filterName.toLowerCase());
-    const matchesPlant = currentType === "areas"
+    const matchesPlant = (currentType === "areas" || currentType === "responsibles" || currentType === "auditors")
       ? (!filterPlant || (item.plant || "").toLowerCase() === filterPlant.toLowerCase())
       : true;
     const matchesCategory = currentType === "norms"
@@ -366,6 +374,8 @@ export default function CatalogsPage() {
           <Tab icon={<LabelIcon />} iconPosition="start" label="Clasificaciones" />
           <Tab icon={<FlagIcon />} iconPosition="start" label="Estados" />
           <Tab icon={<MenuBookIcon />} iconPosition="start" label="Normas" />
+          <Tab icon={<AssignmentIndIcon />} iconPosition="start" label="Responsables" />
+          <Tab icon={<BadgeIcon />} iconPosition="start" label="Auditores" />
         </Tabs>
 
         <CustomTabPanel value={tabValue} index={0}>
@@ -378,6 +388,12 @@ export default function CatalogsPage() {
           {renderCatalogTable()}
         </CustomTabPanel>
         <CustomTabPanel value={tabValue} index={3}>
+          {renderCatalogTable()}
+        </CustomTabPanel>
+        <CustomTabPanel value={tabValue} index={4}>
+          {renderCatalogTable()}
+        </CustomTabPanel>
+        <CustomTabPanel value={tabValue} index={5}>
           {renderCatalogTable()}
         </CustomTabPanel>
       </Paper>
@@ -394,7 +410,13 @@ export default function CatalogsPage() {
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 1 }}>
               <TextField
                 label="Nombre"
-                placeholder="Ej. Mezcla, Crítico, Abierto..."
+                placeholder={
+                  currentType === "responsibles"
+                    ? "Ej. Juan Pérez (Supervisor)"
+                    : currentType === "auditors"
+                    ? "Ej. Lic. Carlos Méndez"
+                    : "Ej. Mezcla, Crítico, Abierto..."
+                }
                 fullWidth
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
@@ -403,7 +425,7 @@ export default function CatalogsPage() {
                 autoFocus
               />
 
-              {currentType === "areas" && (
+              {(currentType === "areas" || currentType === "responsibles" || currentType === "auditors") && (
                 <TextField
                   select
                   label="Planta"
@@ -412,9 +434,17 @@ export default function CatalogsPage() {
                   onChange={(e) => setPlantInput(e.target.value)}
                   disabled={submitting}
                   SelectProps={{ native: true }}
-                  helperText="Selecciona la planta a la que pertenece esta área"
+                  helperText={
+                    currentType === "areas"
+                      ? "Selecciona la planta a la que pertenece esta área"
+                      : "Planta asignada (opcional - dejar vacío para todas las plantas)"
+                  }
                 >
-                  <option value="">-- Seleccionar Planta --</option>
+                  <option value="">
+                    {currentType === "areas"
+                      ? "-- Seleccionar Planta --"
+                      : "-- General / Todas las plantas --"}
+                  </option>
                   {availablePlants.map((plant) => (
                     <option key={plant} value={plant}>
                       {plant}
@@ -522,7 +552,9 @@ export default function CatalogsPage() {
           <TableHead sx={{ backgroundColor: "#1976d2" }}>
             <TableRow>
               <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Nombre</TableCell>
-              {currentType === "areas" && <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Planta</TableCell>}
+              {(currentType === "areas" || currentType === "responsibles" || currentType === "auditors") && (
+                <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Planta</TableCell>
+              )}
               {currentType === "norms" && <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Categoría</TableCell>}
               {currentType === "norms" && <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Punto de Control</TableCell>}
               <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Estado</TableCell>
@@ -542,7 +574,7 @@ export default function CatalogsPage() {
                   fullWidth
                 />
               </TableCell>
-              {currentType === "areas" && (
+              {(currentType === "areas" || currentType === "responsibles" || currentType === "auditors") && (
                 <TableCell sx={{ p: 1 }}>
                   <TextField
                     select
@@ -612,7 +644,7 @@ export default function CatalogsPage() {
             {filteredItems.map((item) => (
               <TableRow key={item.id} hover>
                 <TableCell sx={{ fontWeight: 500 }}>{item.name}</TableCell>
-                {currentType === "areas" && (
+                {(currentType === "areas" || currentType === "responsibles" || currentType === "auditors") && (
                   <TableCell>
                     {item.plant ? (
                       <Chip
@@ -679,7 +711,19 @@ export default function CatalogsPage() {
 
             {filteredItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={currentType === "norms" ? 5 : currentType === "areas" ? 4 : 3} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                <TableCell
+                  colSpan={
+                    currentType === "norms"
+                      ? 5
+                      : currentType === "areas" ||
+                        currentType === "responsibles" ||
+                        currentType === "auditors"
+                      ? 4
+                      : 3
+                  }
+                  align="center"
+                  sx={{ py: 4, color: "text.secondary" }}
+                >
                   No existen registros en este catálogo.
                 </TableCell>
               </TableRow>

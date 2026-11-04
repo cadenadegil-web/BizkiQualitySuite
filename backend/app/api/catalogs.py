@@ -8,6 +8,8 @@ from app.models.area import Area
 from app.models.classification import Classification
 from app.models.status import Status
 from app.models.norm import Norm
+from app.models.responsible import Responsible
+from app.models.auditor import Auditor
 
 
 class CatalogItemSchema(BaseModel):
@@ -287,3 +289,129 @@ def delete_norm(norm_id: UUID, db: Session = Depends(get_db)):
     db.delete(norm_obj)
     db.commit()
     return {"message": "Norma eliminada exitosamente"}
+
+
+# =========================================================
+# RESPONSABLES
+# =========================================================
+
+@router.get("/responsibles", response_model=list[CatalogItemSchema])
+def get_responsibles(db: Session = Depends(get_db)):
+    return db.query(Responsible).order_by(Responsible.plant.asc().nullsfirst(), Responsible.name.asc()).all()
+
+
+@router.post("/responsibles", response_model=CatalogItemSchema)
+def create_responsible(item: CatalogItemCreateSchema, db: Session = Depends(get_db)):
+    query = db.query(Responsible).filter(Responsible.name == item.name)
+    if item.plant:
+        query = query.filter(Responsible.plant == item.plant)
+    else:
+        query = query.filter(Responsible.plant.is_(None))
+    if query.first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El responsable ya existe.")
+    new_resp = Responsible(name=item.name, plant=item.plant, active=item.active)
+    db.add(new_resp)
+    db.commit()
+    db.refresh(new_resp)
+    return new_resp
+
+
+@router.put("/responsibles/{resp_id}", response_model=CatalogItemSchema)
+def update_responsible(resp_id: UUID, item: CatalogItemUpdateSchema, db: Session = Depends(get_db)):
+    resp = db.query(Responsible).filter(Responsible.id == resp_id).first()
+    if not resp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Responsable no encontrado.")
+    target_name = item.name if item.name is not None else resp.name
+    target_plant = item.plant if item.plant is not None else resp.plant
+
+    if target_name != resp.name or target_plant != resp.plant:
+        dup_query = db.query(Responsible).filter(Responsible.name == target_name, Responsible.id != resp_id)
+        if target_plant:
+            dup_query = dup_query.filter(Responsible.plant == target_plant)
+        else:
+            dup_query = dup_query.filter(Responsible.plant.is_(None))
+        if dup_query.first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe un responsable con ese nombre.")
+
+    if item.name is not None:
+        resp.name = item.name
+    if item.plant is not None:
+        resp.plant = item.plant
+    if item.active is not None:
+        resp.active = item.active
+    db.commit()
+    db.refresh(resp)
+    return resp
+
+
+@router.delete("/responsibles/{resp_id}")
+def delete_responsible(resp_id: UUID, db: Session = Depends(get_db)):
+    resp = db.query(Responsible).filter(Responsible.id == resp_id).first()
+    if not resp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Responsable no encontrado.")
+    db.delete(resp)
+    db.commit()
+    return {"message": "Responsable eliminado exitosamente"}
+
+
+# =========================================================
+# AUDITORES
+# =========================================================
+
+@router.get("/auditors", response_model=list[CatalogItemSchema])
+def get_auditors(db: Session = Depends(get_db)):
+    return db.query(Auditor).order_by(Auditor.plant.asc().nullsfirst(), Auditor.name.asc()).all()
+
+
+@router.post("/auditors", response_model=CatalogItemSchema)
+def create_auditor(item: CatalogItemCreateSchema, db: Session = Depends(get_db)):
+    query = db.query(Auditor).filter(Auditor.name == item.name)
+    if item.plant:
+        query = query.filter(Auditor.plant == item.plant)
+    else:
+        query = query.filter(Auditor.plant.is_(None))
+    if query.first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El auditor ya existe.")
+    new_auditor = Auditor(name=item.name, plant=item.plant, active=item.active)
+    db.add(new_auditor)
+    db.commit()
+    db.refresh(new_auditor)
+    return new_auditor
+
+
+@router.put("/auditors/{auditor_id}", response_model=CatalogItemSchema)
+def update_auditor(auditor_id: UUID, item: CatalogItemUpdateSchema, db: Session = Depends(get_db)):
+    auditor = db.query(Auditor).filter(Auditor.id == auditor_id).first()
+    if not auditor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auditor no encontrado.")
+    target_name = item.name if item.name is not None else auditor.name
+    target_plant = item.plant if item.plant is not None else auditor.plant
+
+    if target_name != auditor.name or target_plant != auditor.plant:
+        dup_query = db.query(Auditor).filter(Auditor.name == target_name, Auditor.id != auditor_id)
+        if target_plant:
+            dup_query = dup_query.filter(Auditor.plant == target_plant)
+        else:
+            dup_query = dup_query.filter(Auditor.plant.is_(None))
+        if dup_query.first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe un auditor con ese nombre.")
+
+    if item.name is not None:
+        auditor.name = item.name
+    if item.plant is not None:
+        auditor.plant = item.plant
+    if item.active is not None:
+        auditor.active = item.active
+    db.commit()
+    db.refresh(auditor)
+    return auditor
+
+
+@router.delete("/auditors/{auditor_id}")
+def delete_auditor(auditor_id: UUID, db: Session = Depends(get_db)):
+    auditor = db.query(Auditor).filter(Auditor.id == auditor_id).first()
+    if not auditor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auditor no encontrado.")
+    db.delete(auditor)
+    db.commit()
+    return {"message": "Auditor eliminado exitosamente"}

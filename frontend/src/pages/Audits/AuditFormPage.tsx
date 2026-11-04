@@ -55,6 +55,8 @@ export default function AuditFormPage() {
   const [items, setItems] = useState<FormItem[]>([]);
   const [normsCatalog, setNormsCatalog] = useState<{norm: string, control_point: string}[]>([]);
   const [suggestedNorms, setSuggestedNorms] = useState<string[]>([]);
+  const [auditorOptions, setAuditorOptions] = useState<string[]>([]);
+  const [responsibleOptions, setResponsibleOptions] = useState<string[]>([]);
   
   const [submitting, setSubmitting] = useState(false);
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
@@ -82,6 +84,14 @@ export default function AuditFormPage() {
           return prev;
         });
       }
+    }).catch(() => {});
+
+    getCatalogItems('auditors').then(list => {
+      setAuditorOptions(list.filter(a => a.active).map(a => a.name));
+    }).catch(() => {});
+
+    getCatalogItems('responsibles').then(list => {
+      setResponsibleOptions(list.filter(r => r.active).map(r => r.name));
     }).catch(() => {});
 
     if (isEditing && id) {
@@ -310,19 +320,33 @@ export default function AuditFormPage() {
               required
             />
 
-            <TextField
-              label="Auditor"
+            <Autocomplete
+              freeSolo
+              options={auditorOptions}
               value={auditor}
-              onChange={e => setAuditor(e.target.value)}
-              placeholder="Nombre del auditor"
-              required
+              onInputChange={(_, newValue) => setAuditor(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Auditor"
+                  placeholder="Seleccione o escriba el auditor"
+                  required
+                />
+              )}
             />
 
-            <TextField
-              label="Responsable de Área"
+            <Autocomplete
+              freeSolo
+              options={responsibleOptions}
               value={areaResponsible}
-              onChange={e => setAreaResponsible(e.target.value)}
-              placeholder="Nombre del responsable de área"
+              onInputChange={(_, newValue) => setAreaResponsible(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Responsable de Área"
+                  placeholder="Seleccione o escriba el responsable"
+                />
+              )}
             />
 
             <TextField

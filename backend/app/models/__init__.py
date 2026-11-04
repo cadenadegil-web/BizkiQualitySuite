@@ -5,6 +5,8 @@ from app.models.user import User
 from app.models.finding import Finding
 from app.models.audit import Audit, AuditItem
 from app.models.norm import Norm
+from app.models.responsible import Responsible
+from app.models.auditor import Auditor
 
 __all__ = [
     "Area",
@@ -15,4 +17,6 @@ __all__ = [
     "Audit",
     "AuditItem",
     "Norm",
+    "Responsible",
+    "Auditor",
 ]

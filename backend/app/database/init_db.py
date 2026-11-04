@@ -23,6 +23,8 @@ from app.models.capa import CAPA
 from app.models.evidence import Evidence
 from app.models.audit import Audit, AuditItem
 from app.models.norm import Norm
+from app.models.responsible import Responsible
+from app.models.auditor import Auditor
 
 INITIAL_NORMS = [
     # BPM (Buenas Prácticas de Manufactura / GMP)
@@ -106,6 +108,22 @@ def create_database() -> None:
 
     # Migraciones seguras individuales (cada una en su propia transacción con lock_timeout)
     ddl_statements = [
+        """
+        CREATE TABLE IF NOT EXISTS responsibles (
+            id UUID PRIMARY KEY,
+            name VARCHAR(150) NOT NULL,
+            plant VARCHAR(100),
+            active BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS auditors (
+            id UUID PRIMARY KEY,
+            name VARCHAR(150) NOT NULL,
+            plant VARCHAR(100),
+            active BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        """,
         "ALTER TABLE areas ADD COLUMN IF NOT EXISTS plant VARCHAR(100);",
         "ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_id UUID REFERENCES audits(id) ON DELETE SET NULL;",
         "ALTER TABLE findings ADD COLUMN IF NOT EXISTS audit_item_id UUID REFERENCES audit_items(id) ON DELETE SET NULL;",

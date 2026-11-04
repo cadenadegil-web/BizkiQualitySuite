@@ -1,6 +1,7 @@
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -9,6 +10,7 @@ import {
   MenuItem,
   Typography,
 } from "@mui/material";
+import { getCatalogItems } from "../../services/catalogs.service";
 
 interface Props {
   defaultValues?: any;
@@ -20,8 +22,11 @@ const statuses = ["ABIERTA", "EN PROCESO", "CERRADA"];
 const actionTypes = ["Correctiva", "Preventiva", "Mixta"];
 
 export default function CapaForm({ defaultValues, onSubmit }: Props) {
+  const [responsibles, setResponsibles] = useState<string[]>([]);
+
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -38,6 +43,12 @@ export default function CapaForm({ defaultValues, onSubmit }: Props) {
       ...defaultValues,
     },
   });
+
+  useEffect(() => {
+    getCatalogItems("responsibles")
+      .then((list) => setResponsibles(list.filter((r) => r.active).map((r) => r.name)))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     reset({
@@ -95,12 +106,29 @@ export default function CapaForm({ defaultValues, onSubmit }: Props) {
             ))}
           </TextField>
 
-          <TextField
-            label="Responsable"
-            {...register("responsible", { required: "El responsable es obligatorio." })}
-            error={!!errors.responsible}
-            helperText={errors.responsible?.message?.toString()}
-            fullWidth
+          <Controller
+            name="responsible"
+            control={control}
+            rules={{ required: "El responsable es obligatorio." }}
+            render={({ field }) => (
+              <Autocomplete
+                freeSolo
+                options={responsibles}
+                value={field.value || ""}
+                onChange={(_, data) => field.onChange(data || "")}
+                onInputChange={(_, newInputValue) => field.onChange(newInputValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Responsable"
+                    placeholder="Seleccione o escriba el nombre del responsable"
+                    fullWidth
+                    error={!!errors.responsible}
+                    helperText={errors.responsible?.message?.toString()}
+                  />
+                )}
+              />
+            )}
           />
 
           <TextField

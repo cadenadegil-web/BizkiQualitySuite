@@ -4,6 +4,8 @@ from app.models.area import Area
 from app.models.classification import Classification
 from app.models.status import Status
 from app.models.norm import Norm
+from app.models.responsible import Responsible
+from app.models.auditor import Auditor
 
 
 def seed_database(db: Session):
@@ -62,6 +64,32 @@ def seed_database(db: Session):
         ]
 
         db.add_all(statuses)
+
+    # -----------------------
+    # RESPONSABLES
+    # -----------------------
+
+    if db.query(Responsible).count() == 0:
+        responsibles = [
+            Responsible(name="Gerente de Planta", plant="MDH"),
+            Responsible(name="Jefe de Calidad", plant="MDH"),
+            Responsible(name="Supervisor de Producción", plant="MDH"),
+            Responsible(name="Jefe de Mantenimiento", plant="MDH"),
+            Responsible(name="Coordinador de Almacén", plant="MDH"),
+        ]
+        db.add_all(responsibles)
+
+    # -----------------------
+    # AUDITORES
+    # -----------------------
+
+    if db.query(Auditor).count() == 0:
+        auditors = [
+            Auditor(name="Auditor Líder Calidad", plant="MDH"),
+            Auditor(name="Auditor Interno BPM", plant="MDH"),
+            Auditor(name="Auditor Seguridad e Inocuidad", plant="MDH"),
+        ]
+        db.add_all(auditors)
 
     # -----------------------
     # NORMAS FSSC 22000

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Autocomplete,
   Box,
   Button,
   Dialog,
@@ -40,6 +41,7 @@ export default function FindingModal({ open, onClose, onSubmit, submitting = fal
   const [areas, setAreas] = useState<CatalogItem[]>([]);
   const [classifications, setClassifications] = useState<CatalogItem[]>([]);
   const [statuses, setStatuses] = useState<CatalogItem[]>([]);
+  const [responsibles, setResponsibles] = useState<CatalogItem[]>([]);
 
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -61,14 +63,16 @@ export default function FindingModal({ open, onClose, onSubmit, submitting = fal
   useEffect(() => {
     async function loadCatalogs() {
       try {
-        const [a, c, s] = await Promise.all([
+        const [a, c, s, r] = await Promise.all([
           getCatalogItems("areas"),
           getCatalogItems("classifications"),
           getCatalogItems("statuses"),
+          getCatalogItems("responsibles"),
         ]);
         setAreas(a.filter((item) => item.active));
         setClassifications(c.filter((item) => item.active));
         setStatuses(s.filter((item) => item.active));
+        setResponsibles(r.filter((item) => item.active));
       } catch (err) {
         console.error("Error cargando catálogos en modal hallazgos", err);
       }
@@ -117,14 +121,23 @@ export default function FindingModal({ open, onClose, onSubmit, submitting = fal
               name="responsible"
               control={control}
               render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Responsable"
-                  placeholder="Nombre del responsable"
-                  fullWidth
+                <Autocomplete
+                  freeSolo
+                  options={responsibles.map((r) => r.name)}
+                  value={field.value || ""}
+                  onChange={(_, data) => field.onChange(data || "")}
+                  onInputChange={(_, newInputValue) => field.onChange(newInputValue)}
                   disabled={submitting}
-                  error={!!errors.responsible}
-                  helperText={errors.responsible?.message}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Responsable"
+                      placeholder="Seleccione o escriba el responsable"
+                      fullWidth
+                      error={!!errors.responsible}
+                      helperText={errors.responsible?.message}
+                    />
+                  )}
                 />
               )}
             />

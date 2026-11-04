@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
+  Alert, Autocomplete, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
   DialogActions, DialogContent, DialogTitle, Divider, FormControl, IconButton,
   InputLabel, LinearProgress, MenuItem, Paper, Select, Snackbar, Stack,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -81,6 +81,8 @@ export default function AuditsPage() {
 
   const [areas, setAreas] = useState<{ id: string; name: string; plant?: string }[]>([]);
   const [normsCatalog, setNormsCatalog] = useState<{ norm: string; control_point: string }[]>([]);
+  const [auditorsCatalog, setAuditorsCatalog] = useState<{ id: string; name: string; plant?: string | null }[]>([]);
+  const [responsiblesCatalog, setResponsiblesCatalog] = useState<{ id: string; name: string; plant?: string | null }[]>([]);
 
   // Filtros en pantalla
   const [tablePlantFilter, setTablePlantFilter] = useState<string>('ALL');
@@ -133,7 +135,29 @@ export default function AuditsPage() {
         setNormsCatalog(active.map((n) => ({ norm: n.name, control_point: n.description || '' })));
       })
       .catch(() => {});
+
+    getCatalogItems('auditors')
+      .then((list) => {
+        const active = list.filter((a) => a.active);
+        setAuditorsCatalog(active.map((a) => ({ id: a.id, name: a.name, plant: a.plant })));
+      })
+      .catch(() => {});
+
+    getCatalogItems('responsibles')
+      .then((list) => {
+        const active = list.filter((r) => r.active);
+        setResponsiblesCatalog(active.map((r) => ({ id: r.id, name: r.name, plant: r.plant })));
+      })
+      .catch(() => {});
   }, []);
+
+  const auditorOptions = useMemo(() => {
+    return Array.from(new Set(auditorsCatalog.map((a) => a.name))).filter(Boolean);
+  }, [auditorsCatalog]);
+
+  const responsibleOptions = useMemo(() => {
+    return Array.from(new Set(responsiblesCatalog.map((r) => r.name))).filter(Boolean);
+  }, [responsiblesCatalog]);
 
   const plantOptions = useMemo(() => {
     const customPlants = areas
@@ -783,13 +807,20 @@ export default function AuditsPage() {
               </Select>
             </FormControl>
 
-            <TextField
-              label="Responsable de Área"
-              size="small"
-              fullWidth
+            <Autocomplete
+              freeSolo
+              options={responsibleOptions}
               value={formAreaResponsible}
-              onChange={(e) => setFormAreaResponsible(e.target.value)}
-              placeholder="Nombre del responsable del área auditada"
+              onInputChange={(_, newValue) => setFormAreaResponsible(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Responsable de Área"
+                  size="small"
+                  fullWidth
+                  placeholder="Seleccione o escriba el nombre del responsable"
+                />
+              )}
             />
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
@@ -818,14 +849,21 @@ export default function AuditsPage() {
               />
             </Stack>
 
-            <TextField
-              label="Auditor"
-              size="small"
-              fullWidth
-              required
+            <Autocomplete
+              freeSolo
+              options={auditorOptions}
               value={formAuditor}
-              onChange={(e) => setFormAuditor(e.target.value)}
-              placeholder="Nombre del auditor responsable"
+              onInputChange={(_, newValue) => setFormAuditor(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Auditor"
+                  size="small"
+                  fullWidth
+                  required
+                  placeholder="Seleccione o escriba el nombre del auditor"
+                />
+              )}
             />
 
             <TextField

@@ -9,7 +9,13 @@ export interface CatalogItem {
   category?: string;
 }
 
-export type CatalogType = "areas" | "classifications" | "statuses" | "norms";
+export type CatalogType =
+  | "areas"
+  | "classifications"
+  | "statuses"
+  | "norms"
+  | "responsibles"
+  | "auditors";
 
 export async function getCatalogItems(type: CatalogType): Promise<CatalogItem[]> {
   const response = await api.get(`/catalogs/${type}`);
