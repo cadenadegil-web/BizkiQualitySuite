@@ -1,8 +1,8 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -10,6 +10,7 @@ from app.models.area import Area
 from app.models.user import User
 from app.schemas.audit import AuditCreate, AuditResponse, AuditUpdate
 from app.security.auth import get_current_user
+from app.utils.file_storage import BASE_STORAGE, save_file
 from app.services.audit_service import (
     can_access_audit, complete_audit, create_audit, delete_audit,
     get_audit, get_audits, get_audits_by_date, get_audits_for_report, update_audit,
@@ -172,3 +173,24 @@ def individual_report(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/upload-evidence")
+def upload_evidence(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    stored_name, storage_path = save_file(file, "audits")
+    return {
+        "url": f"/audits/evidence/{stored_name}",
+        "original_name": file.filename,
+        "stored_name": stored_name,
+    }
+
+
+@router.get("/evidence/{filename}")
+def get_evidence_file(filename: str):
+    file_path = BASE_STORAGE / "audits" / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Archivo de evidencia no encontrado.")
+    return FileResponse(path=file_path)

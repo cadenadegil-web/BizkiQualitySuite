@@ -7,6 +7,8 @@ export interface AuditItem {
   objective?: string | null;
   result: 'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null;
   comment: string | null;
+  non_compliant_collaborators?: string | null;
+  evidence_url?: string | null;
   finding?: { id: string; code: string; active: boolean } | null;
 }
 
@@ -38,6 +40,8 @@ export interface AuditItemCreate {
   objective?: string | null;
   result?: 'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null;
   comment?: string | null;
+  non_compliant_collaborators?: string | null;
+  evidence_url?: string | null;
 }
 
 export interface AuditCreate {

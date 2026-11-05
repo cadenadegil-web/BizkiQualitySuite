@@ -45,8 +45,19 @@ export default function CapaForm({ defaultValues, onSubmit }: Props) {
   });
 
   useEffect(() => {
-    getCatalogItems("responsibles")
-      .then((list) => setResponsibles(list.filter((r) => r.active).map((r) => r.name)))
+    Promise.all([
+      getCatalogItems("responsibles"),
+      getCatalogItems("collaborators"),
+    ])
+      .then(([rList, cList]) => {
+        const combined = Array.from(
+          new Set([
+            ...rList.filter((r) => r.active).map((r) => r.name),
+            ...cList.filter((c) => c.active).map((c) => c.name),
+          ])
+        );
+        setResponsibles(combined);
+      })
       .catch(() => {});
   }, []);
 

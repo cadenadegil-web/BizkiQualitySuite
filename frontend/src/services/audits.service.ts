@@ -30,6 +30,15 @@ export async function deleteAudit(id: string): Promise<void> {
   await api.delete(`/audits/${id}`);
 }
 
+export async function uploadAuditEvidence(file: File): Promise<{ url: string; original_name: string; stored_name: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post('/audits/upload-evidence', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
 export async function downloadAuditPDF(id: string, code: string): Promise<void> {
   const res = await api.get(`/audits/${id}/report`, { responseType: 'blob' });
   const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));

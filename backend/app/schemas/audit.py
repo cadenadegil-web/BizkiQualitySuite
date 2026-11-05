@@ -18,6 +18,8 @@ class AuditItemBase(BaseModel):
     objective: Optional[str] = None
     result: Optional[str] = None  # CONFORME / NO_CONFORME / OBSERVACION
     comment: Optional[str] = None
+    non_compliant_collaborators: Optional[str] = None
+    evidence_url: Optional[str] = None
 
 
 class AuditItemCreate(AuditItemBase):
@@ -28,6 +30,8 @@ class AuditItemUpdate(BaseModel):
     objective: Optional[str] = None
     result: Optional[str] = None
     comment: Optional[str] = None
+    non_compliant_collaborators: Optional[str] = None
+    evidence_url: Optional[str] = None
 
 
 class FindingSimple(BaseModel):

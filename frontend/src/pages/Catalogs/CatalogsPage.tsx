@@ -38,6 +38,7 @@ import FlagIcon from "@mui/icons-material/Flag";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import BadgeIcon from "@mui/icons-material/Badge";
+import GroupIcon from "@mui/icons-material/Group";
 import TableViewIcon from "@mui/icons-material/TableView";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 
@@ -123,6 +124,7 @@ export default function CatalogsPage() {
       case 3: return "norms";
       case 4: return "responsibles";
       case 5: return "auditors";
+      case 6: return "collaborators";
       default: return "areas";
     }
   };
@@ -137,6 +139,7 @@ export default function CatalogsPage() {
       case 3: return "Normas de Auditoría";
       case 4: return "Responsables";
       case 5: return "Auditores";
+      case 6: return "Colaboradores";
       default: return "Catálogo";
     }
   };
@@ -220,7 +223,11 @@ export default function CatalogsPage() {
       return;
     }
 
-    const isPlantCatalogs = currentType === "areas" || currentType === "responsibles" || currentType === "auditors";
+    const isPlantCatalogs =
+      currentType === "areas" ||
+      currentType === "responsibles" ||
+      currentType === "auditors" ||
+      currentType === "collaborators";
 
     setSubmitting(true);
     try {
@@ -285,8 +292,13 @@ export default function CatalogsPage() {
   };
 
   const filteredItems = items.filter(item => {
+    const isPlant =
+      currentType === "areas" ||
+      currentType === "responsibles" ||
+      currentType === "auditors" ||
+      currentType === "collaborators";
     const matchesName = item.name.toLowerCase().includes(filterName.toLowerCase());
-    const matchesPlant = (currentType === "areas" || currentType === "responsibles" || currentType === "auditors")
+    const matchesPlant = isPlant
       ? (!filterPlant || (item.plant || "").toLowerCase() === filterPlant.toLowerCase())
       : true;
     const matchesCategory = currentType === "norms"
@@ -376,6 +388,7 @@ export default function CatalogsPage() {
           <Tab icon={<MenuBookIcon />} iconPosition="start" label="Normas" />
           <Tab icon={<AssignmentIndIcon />} iconPosition="start" label="Responsables" />
           <Tab icon={<BadgeIcon />} iconPosition="start" label="Auditores" />
+          <Tab icon={<GroupIcon />} iconPosition="start" label="Colaboradores" />
         </Tabs>
 
         <CustomTabPanel value={tabValue} index={0}>
@@ -394,6 +407,9 @@ export default function CatalogsPage() {
           {renderCatalogTable()}
         </CustomTabPanel>
         <CustomTabPanel value={tabValue} index={5}>
+          {renderCatalogTable()}
+        </CustomTabPanel>
+        <CustomTabPanel value={tabValue} index={6}>
           {renderCatalogTable()}
         </CustomTabPanel>
       </Paper>
@@ -415,6 +431,8 @@ export default function CatalogsPage() {
                     ? "Ej. Juan Pérez (Supervisor)"
                     : currentType === "auditors"
                     ? "Ej. Lic. Carlos Méndez"
+                    : currentType === "collaborators"
+                    ? "Ej. Mario Sánchez (Operador)"
                     : "Ej. Mezcla, Crítico, Abierto..."
                 }
                 fullWidth
@@ -425,7 +443,10 @@ export default function CatalogsPage() {
                 autoFocus
               />
 
-              {(currentType === "areas" || currentType === "responsibles" || currentType === "auditors") && (
+              {(currentType === "areas" ||
+                currentType === "responsibles" ||
+                currentType === "auditors" ||
+                currentType === "collaborators") && (
                 <TextField
                   select
                   label="Planta"
@@ -546,13 +567,19 @@ export default function CatalogsPage() {
       );
     }
 
+    const isPlant =
+      currentType === "areas" ||
+      currentType === "responsibles" ||
+      currentType === "auditors" ||
+      currentType === "collaborators";
+
     return (
       <TableContainer>
         <Table>
           <TableHead sx={{ backgroundColor: "#1976d2" }}>
             <TableRow>
               <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Nombre</TableCell>
-              {(currentType === "areas" || currentType === "responsibles" || currentType === "auditors") && (
+              {isPlant && (
                 <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Planta</TableCell>
               )}
               {currentType === "norms" && <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Categoría</TableCell>}
@@ -574,7 +601,7 @@ export default function CatalogsPage() {
                   fullWidth
                 />
               </TableCell>
-              {(currentType === "areas" || currentType === "responsibles" || currentType === "auditors") && (
+              {isPlant && (
                 <TableCell sx={{ p: 1 }}>
                   <TextField
                     select
@@ -644,7 +671,7 @@ export default function CatalogsPage() {
             {filteredItems.map((item) => (
               <TableRow key={item.id} hover>
                 <TableCell sx={{ fontWeight: 500 }}>{item.name}</TableCell>
-                {(currentType === "areas" || currentType === "responsibles" || currentType === "auditors") && (
+                {isPlant && (
                   <TableCell>
                     {item.plant ? (
                       <Chip
@@ -712,15 +739,7 @@ export default function CatalogsPage() {
             {filteredItems.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={
-                    currentType === "norms"
-                      ? 5
-                      : currentType === "areas" ||
-                        currentType === "responsibles" ||
-                        currentType === "auditors"
-                      ? 4
-                      : 3
-                  }
+                  colSpan={currentType === "norms" ? 5 : isPlant ? 4 : 3}
                   align="center"
                   sx={{ py: 4, color: "text.secondary" }}
                 >

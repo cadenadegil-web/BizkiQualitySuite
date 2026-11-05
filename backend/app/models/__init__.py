@@ -7,6 +7,7 @@ from app.models.audit import Audit, AuditItem
 from app.models.norm import Norm
 from app.models.responsible import Responsible
 from app.models.auditor import Auditor
+from app.models.collaborator import Collaborator
 
 __all__ = [
     "Area",
@@ -19,4 +20,5 @@ __all__ = [
     "Norm",
     "Responsible",
     "Auditor",
+    "Collaborator",
 ]

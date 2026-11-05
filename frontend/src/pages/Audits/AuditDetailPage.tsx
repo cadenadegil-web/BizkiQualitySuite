@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress,
-  Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Autocomplete, Box, Button, Card, CardContent, Chip, CircularProgress,
+  Dialog, DialogActions, DialogContent, DialogTitle, Divider,
   IconButton, LinearProgress, Paper, Snackbar, Stack, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, TextField, Tooltip, Typography,
+  TableCell, TableContainer, TableHead, TableRow, Tabs, Tab, TextField, Tooltip, Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -13,12 +13,19 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import InsertLinkIcon from '@mui/icons-material/InsertLink';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import GroupIcon from '@mui/icons-material/Group';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 import { useAudit } from '../../hooks/useAudits';
-import { completeAudit, downloadAuditPDF, updateAudit } from '../../services/audits.service';
+import { completeAudit, downloadAuditPDF, updateAudit, uploadAuditEvidence } from '../../services/audits.service';
+import { getCatalogItems } from '../../services/catalogs.service';
 import { AuditItem } from '../../types/audit';
 import { classifyAuditItemObjective, getAuditObjectives, getObjectiveColor } from '../../utils/auditObjectives';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const RESULT_CONFIG: Record<string, { label: string; color: 'success' | 'error' | 'warning' | 'default'; icon: React.ReactNode }> = {
   CONFORME: { label: 'Conforme', color: 'success', icon: <CheckCircleIcon fontSize="small" /> },
@@ -43,12 +50,23 @@ export default function AuditDetailPage() {
   const [editingItem, setEditingItem] = useState<AuditItem | null>(null);
   const [editResult, setEditResult] = useState<'CONFORME' | 'NO_CONFORME' | 'OBSERVACION' | null>(null);
   const [editComment, setEditComment] = useState('');
+  const [editEvidenceUrl, setEditEvidenceUrl] = useState('');
+  const [editCollaborators, setEditCollaborators] = useState<string[]>([]);
+  const [evidenceTab, setEvidenceTab] = useState<number>(0);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const [collaboratorOptions, setCollaboratorOptions] = useState<string[]>([]);
   const [savingItem, setSavingItem] = useState(false);
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
     severity: 'success',
   });
+
+  useEffect(() => {
+    getCatalogItems('collaborators')
+      .then((list) => setCollaboratorOptions(list.filter((c) => c.active).map((c) => c.name)))
+      .catch(() => {});
+  }, []);
 
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
   if (error || !audit) return <Alert severity="error">No se encontró la auditoría.</Alert>;
@@ -73,6 +91,29 @@ export default function AuditDetailPage() {
     setEditingItem(item);
     setEditResult(item.result);
     setEditComment(item.comment || '');
+    setEditEvidenceUrl(item.evidence_url || '');
+    setEditCollaborators(
+      item.non_compliant_collaborators
+        ? item.non_compliant_collaborators.split(',').map((s) => s.trim()).filter(Boolean)
+        : []
+    );
+    setEvidenceTab(0);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingEvidence(true);
+    try {
+      const res = await uploadAuditEvidence(file);
+      const fullUrl = res.url.startsWith('http') ? res.url : `${window.location.origin}${res.url}`;
+      setEditEvidenceUrl(fullUrl);
+      setSnack({ open: true, message: 'Evidencia cargada exitosamente.', severity: 'success' });
+    } catch {
+      setSnack({ open: true, message: 'Error al subir la evidencia.', severity: 'error' });
+    } finally {
+      setUploadingEvidence(false);
+    }
   };
 
   const handleSaveItem = async () => {
@@ -87,6 +128,8 @@ export default function AuditDetailPage() {
             control_point: it.control_point,
             result: editResult,
             comment: editComment.trim() || null,
+            non_compliant_collaborators: editCollaborators.length > 0 ? editCollaborators.join(', ') : null,
+            evidence_url: editEvidenceUrl.trim() || null,
           };
         }
         return {
@@ -95,6 +138,8 @@ export default function AuditDetailPage() {
           control_point: it.control_point,
           result: it.result,
           comment: it.comment,
+          non_compliant_collaborators: it.non_compliant_collaborators,
+          evidence_url: it.evidence_url,
         };
       });
 
@@ -264,7 +309,38 @@ export default function AuditDetailPage() {
                         />
                       </TableCell>
                       <TableCell sx={{ whiteSpace: 'nowrap', fontSize: 12, color: '#555' }}>{item.norm}</TableCell>
-                      <TableCell sx={{ fontWeight: 500 }}>{item.control_point}</TableCell>
+                      <TableCell sx={{ fontWeight: 500 }}>
+                        {item.control_point}
+                        {(item.evidence_url || item.non_compliant_collaborators) && (
+                          <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" sx={{ mt: 0.8 }}>
+                            {item.evidence_url && (
+                              <Chip
+                                size="small"
+                                icon={<InsertLinkIcon fontSize="small" />}
+                                label="Evidencia"
+                                color="info"
+                                variant="outlined"
+                                clickable
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(item.evidence_url!, '_blank');
+                                }}
+                                sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600 }}
+                              />
+                            )}
+                            {item.non_compliant_collaborators && (
+                              <Chip
+                                size="small"
+                                icon={<GroupIcon fontSize="small" />}
+                                label={`Colaborador(es): ${item.non_compliant_collaborators}`}
+                                color="warning"
+                                variant="outlined"
+                                sx={{ height: 22, fontSize: '0.72rem', fontWeight: 600 }}
+                              />
+                            )}
+                          </Stack>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <Tooltip title="Haz clic para cambiar el resultado">
@@ -380,7 +456,130 @@ export default function AuditDetailPage() {
               multiline
               rows={3}
               helperText={editResult === 'NO_CONFORME' ? 'Recomendado: Explica el motivo de la no conformidad' : ''}
+              sx={{ mb: 2.5 }}
             />
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Sección de Colaboradores en Incumplimiento */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <GroupIcon fontSize="small" color="warning" /> Colaboradores en Falta o Incumplimiento:
+              </Typography>
+              <Autocomplete
+                multiple
+                freeSolo
+                options={collaboratorOptions}
+                value={editCollaborators}
+                onChange={(_, newValue) => setEditCollaborators(newValue)}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Seleccionar o escribir colaboradores"
+                    placeholder="Escriba o seleccione nombres..."
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      {...getTagProps({ index })}
+                      key={option}
+                      label={option}
+                      color="warning"
+                      variant="filled"
+                      size="small"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  ))
+                }
+              />
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Sección de Evidencias */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <AttachFileIcon fontSize="small" color="info" /> Evidencias (Foto / Archivo / Link):
+              </Typography>
+              <Tabs
+                value={evidenceTab}
+                onChange={(_, val) => setEvidenceTab(val)}
+                sx={{ borderBottom: 1, borderColor: 'divider', mb: 1.5 }}
+              >
+                <Tab icon={<CloudUploadIcon />} iconPosition="start" label="Subir Archivo / Foto" sx={{ minHeight: 40 }} />
+                <Tab icon={<InsertLinkIcon />} iconPosition="start" label="Link / URL Web" sx={{ minHeight: 40 }} />
+              </Tabs>
+
+              {evidenceTab === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 1 }}>
+                  <input
+                    type="file"
+                    id="detail-evidence-file"
+                    style={{ display: 'none' }}
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={handleFileUpload}
+                    disabled={uploadingEvidence}
+                  />
+                  <label htmlFor="detail-evidence-file">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      startIcon={<CloudUploadIcon />}
+                      disabled={uploadingEvidence}
+                      sx={{ textTransform: 'none', py: 1, px: 2.5, borderRadius: 2 }}
+                    >
+                      {uploadingEvidence ? 'Subiendo archivo...' : 'Seleccionar o Tomar Foto / Archivo'}
+                    </Button>
+                  </label>
+                  {uploadingEvidence && (
+                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+                      <CircularProgress size={18} />
+                      <Typography variant="caption" color="text.secondary">Subiendo archivo...</Typography>
+                    </Box>
+                  )}
+                  {editEvidenceUrl && !uploadingEvidence && (
+                    <Box sx={{ mt: 1.5, p: 1.5, backgroundColor: '#f0f7ff', borderRadius: 2, textAlign: 'left' }}>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between">
+                        <Typography variant="body2" sx={{ wordBreak: 'break-all', maxWidth: '80%' }}>
+                          {editEvidenceUrl}
+                        </Typography>
+                        <Stack direction="row" spacing={0.5}>
+                          <IconButton size="small" color="primary" onClick={() => window.open(editEvidenceUrl, '_blank')}>
+                            <OpenInNewIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" color="error" onClick={() => setEditEvidenceUrl('')}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </Stack>
+                    </Box>
+                  )}
+                </Box>
+              ) : (
+                <Box sx={{ pt: 1 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Enlace / URL de la Evidencia"
+                    placeholder="https://..."
+                    value={editEvidenceUrl}
+                    onChange={(e) => setEditEvidenceUrl(e.target.value)}
+                  />
+                  {editEvidenceUrl && (
+                    <Button
+                      size="small"
+                      startIcon={<OpenInNewIcon />}
+                      onClick={() => window.open(editEvidenceUrl, '_blank')}
+                      sx={{ textTransform: 'none', mt: 1 }}
+                    >
+                      Probar enlace en nueva pestaña
+                    </Button>
+                  )}
+                </Box>
+              )}
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>

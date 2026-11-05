@@ -163,9 +163,12 @@ def _generate_audit_pdf_reportlab(audit: Audit) -> bytes:
         elements.append(Paragraph("<b>5. Detalle de Puntos de Control</b>", subtitle_style))
         items_data = [["#", "Norma", "Punto de Control", "Resultado", "Comentario"]]
         for item in audit.items:
+            cmt = item.comment or ""
+            if item.non_compliant_collaborators:
+                cmt += f"<br/><b>Colaboradores:</b> {item.non_compliant_collaborators}"
             items_data.append([
                 str(item.order), item.norm, Paragraph(item.control_point, normal_style),
-                RESULT_LABELS.get(item.result, "Pendiente"), Paragraph(item.comment or "", normal_style)
+                RESULT_LABELS.get(item.result, "Pendiente"), Paragraph(cmt, normal_style)
             ])
             
         t_items = Table(items_data, colWidths=[1*cm, 2.5*cm, 7*cm, 2.5*cm, 3.5*cm], repeatRows=1)
@@ -405,9 +408,12 @@ def _generate_daily_report_pdf_reportlab(
             elements.append(Spacer(1, 0.3*cm))
             items_data = [["#", "Norma", "Punto de Control", "Resultado", "Comentario"]]
             for item in audit.items:
+                cmt = item.comment or ""
+                if item.non_compliant_collaborators:
+                    cmt += f"<br/><b>Colaboradores:</b> {item.non_compliant_collaborators}"
                 items_data.append([
                     str(item.order), item.norm, Paragraph(item.control_point, normal_style),
-                    RESULT_LABELS.get(item.result, "Pendiente"), Paragraph(item.comment or "", normal_style)
+                    RESULT_LABELS.get(item.result, "Pendiente"), Paragraph(cmt, normal_style)
                 ])
                 
             t_items = Table(items_data, colWidths=[1*cm, 2.5*cm, 7*cm, 2.5*cm, 3.5*cm], repeatRows=1)
@@ -614,6 +620,9 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         for item in audit.items:
             result_label = RESULT_LABELS.get(item.result, "Pendiente")
             comment = (item.comment or "").replace("&", "\\&").replace("_", "\\_").replace("%", "\\%")
+            if item.non_compliant_collaborators:
+                clean_collabs = item.non_compliant_collaborators.replace("&", "\\&").replace("_", "\\_").replace("%", "\\%")
+                comment += f" [Colab: {clean_collabs}]"
             norm = item.norm.replace("&", "\\&").replace("_", "\\_")
             control = item.control_point.replace("&", "\\&").replace("_", "\\_").replace("%", "\\%")
 
@@ -873,6 +882,9 @@ def generate_daily_report_pdf(
             for item in audit.items:
                 result_label = RESULT_LABELS.get(item.result, "Pendiente")
                 comment = (item.comment or "").replace("&", "\\&").replace("_", "\\_").replace("%", "\\%")
+            if item.non_compliant_collaborators:
+                clean_collabs = item.non_compliant_collaborators.replace("&", "\\&").replace("_", "\\_").replace("%", "\\%")
+                comment += f" [Colab: {clean_collabs}]"
                 norm = item.norm.replace("&", "\\&").replace("_", "\\_")
                 control = item.control_point.replace("&", "\\&").replace("_", "\\_").replace("%", "\\%")
                 if item.result == "CONFORME":

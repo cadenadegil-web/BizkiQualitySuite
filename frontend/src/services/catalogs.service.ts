@@ -15,7 +15,8 @@ export type CatalogType =
   | "statuses"
   | "norms"
   | "responsibles"
-  | "auditors";
+  | "auditors"
+  | "collaborators";
 
 export async function getCatalogItems(type: CatalogType): Promise<CatalogItem[]> {
   const response = await api.get(`/catalogs/${type}`);

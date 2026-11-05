@@ -152,6 +152,8 @@ def create_audit(db: Session, data: AuditCreate, current_user: User | None = Non
             objective=obj,
             result=item_data.result,
             comment=item_data.comment,
+            non_compliant_collaborators=item_data.non_compliant_collaborators,
+            evidence_url=item_data.evidence_url,
         )
         db.add(item)
 
@@ -288,6 +290,8 @@ def sync_audit_findings(db: Session, audit: Audit) -> None:
         description = f"[Auditoría {audit.code}] {item.norm}: {item.control_point}"
         if item.comment:
             description += f". Comentario: {item.comment}"
+        if item.non_compliant_collaborators:
+            description += f". Colaborador(es) en falta: {item.non_compliant_collaborators}"
 
         process_name = f"Auditoría {audit.shift} — {audit.area.name if audit.area else ''}"
 
@@ -347,6 +351,8 @@ def update_audit(db: Session, audit: Audit, data: AuditUpdate) -> Audit:
                 objective=obj,
                 result=item_data.result,
                 comment=item_data.comment,
+                non_compliant_collaborators=item_data.non_compliant_collaborators,
+                evidence_url=item_data.evidence_url,
             )
             db.add(item)
         db.flush()

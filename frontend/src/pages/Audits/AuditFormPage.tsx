@@ -4,6 +4,7 @@ import {
   Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Fab,
   FormControl, IconButton, InputLabel, MenuItem, Select,
   Snackbar, Stack, TextField, Tooltip, Typography, Autocomplete,
+  Dialog, DialogTitle, DialogContent, DialogActions, Tabs, Tab, Divider,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -12,10 +13,15 @@ import WarningIcon from '@mui/icons-material/Warning';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import InsertLinkIcon from '@mui/icons-material/InsertLink';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import GroupIcon from '@mui/icons-material/Group';
 
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 
-import { createAudit, getAudit, updateAudit } from '../../services/audits.service';
+import { createAudit, getAudit, updateAudit, uploadAuditEvidence } from '../../services/audits.service';
 import { getCatalogItems } from '../../services/catalogs.service';
 import { AuditItemCreate } from '../../types/audit';
 import { classifyAuditItemObjective, getObjectiveColor } from '../../utils/auditObjectives';
@@ -57,6 +63,16 @@ export default function AuditFormPage() {
   const [suggestedNorms, setSuggestedNorms] = useState<string[]>([]);
   const [auditorOptions, setAuditorOptions] = useState<string[]>([]);
   const [responsibleOptions, setResponsibleOptions] = useState<string[]>([]);
+  const [collaboratorOptions, setCollaboratorOptions] = useState<string[]>([]);
+
+  // Dialog estados para Evidencia y Colaboradores
+  const [evidenceModalItemKey, setEvidenceModalItemKey] = useState<number | null>(null);
+  const [evidenceTab, setEvidenceTab] = useState<number>(0);
+  const [evidenceUrlInput, setEvidenceUrlInput] = useState<string>('');
+  const [uploadingEvidence, setUploadingEvidence] = useState<boolean>(false);
+
+  const [collaboratorModalItemKey, setCollaboratorModalItemKey] = useState<number | null>(null);
+  const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
   
   const [submitting, setSubmitting] = useState(false);
   const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
@@ -94,6 +110,10 @@ export default function AuditFormPage() {
       setResponsibleOptions(list.filter(r => r.active).map(r => r.name));
     }).catch(() => {});
 
+    getCatalogItems('collaborators').then(list => {
+      setCollaboratorOptions(list.filter(c => c.active).map(c => c.name));
+    }).catch(() => {});
+
     if (isEditing && id) {
       getAudit(id)
         .then(audit => {
@@ -114,6 +134,8 @@ export default function AuditFormPage() {
               control_point: it.control_point,
               result: it.result,
               comment: it.comment,
+              non_compliant_collaborators: it.non_compliant_collaborators || null,
+              evidence_url: it.evidence_url || null,
             })));
           }
         })
@@ -148,7 +170,7 @@ export default function AuditFormPage() {
     setItems(prev => prev.map(it => it._key === key ? { ...it, result } : it));
   };
 
-  const setItemField = (key: number, field: 'norm' | 'control_point' | 'comment', value: string) => {
+  const setItemField = (key: number, field: keyof FormItem, value: any) => {
     setItems(prev => prev.map(it => it._key === key ? { ...it, [field]: value } : it));
   };
 
@@ -172,8 +194,69 @@ export default function AuditFormPage() {
     keyCounter++;
     setItems(prev => [
       ...prev,
-      { _key: keyCounter, order: prev.length + 1, norm: '', control_point: '', result: null, comment: null },
+      {
+        _key: keyCounter,
+        order: prev.length + 1,
+        norm: '',
+        control_point: '',
+        result: null,
+        comment: null,
+        non_compliant_collaborators: null,
+        evidence_url: null,
+      },
     ]);
+  };
+
+  const openEvidenceModal = (key: number) => {
+    const item = items.find(it => it._key === key);
+    setEvidenceModalItemKey(key);
+    setEvidenceUrlInput(item?.evidence_url || '');
+    setEvidenceTab(0);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || evidenceModalItemKey === null) return;
+    setUploadingEvidence(true);
+    try {
+      const res = await uploadAuditEvidence(file);
+      const fullUrl = res.url.startsWith('http') ? res.url : `${window.location.origin}${res.url}`;
+      setEvidenceUrlInput(fullUrl);
+      setItemField(evidenceModalItemKey, 'evidence_url', fullUrl);
+      setSnack({ open: true, message: 'Evidencia subida correctamente.', severity: 'success' });
+    } catch {
+      setSnack({ open: true, message: 'Error al subir la evidencia.', severity: 'error' });
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
+
+  const saveEvidenceUrl = () => {
+    if (evidenceModalItemKey !== null) {
+      setItemField(evidenceModalItemKey, 'evidence_url', evidenceUrlInput.trim() || null);
+    }
+    setEvidenceModalItemKey(null);
+  };
+
+  const removeEvidence = (key: number) => {
+    setItemField(key, 'evidence_url', null);
+  };
+
+  const openCollaboratorsModal = (key: number) => {
+    const item = items.find(it => it._key === key);
+    const existing = item?.non_compliant_collaborators
+      ? item.non_compliant_collaborators.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    setSelectedCollaborators(existing);
+    setCollaboratorModalItemKey(key);
+  };
+
+  const saveCollaborators = () => {
+    if (collaboratorModalItemKey !== null) {
+      const val = selectedCollaborators.join(', ');
+      setItemField(collaboratorModalItemKey, 'non_compliant_collaborators', val || null);
+    }
+    setCollaboratorModalItemKey(null);
   };
 
   const removeItem = (key: number) => {
@@ -460,8 +543,8 @@ export default function AuditFormPage() {
                       />
                     </Box>
 
-                    {/* Result buttons */}
-                    <Stack direction="row" gap={1} sx={{ mb: 1 }}>
+                    {/* Result buttons, Evidencias y Colaboradores */}
+                    <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
                       {(Object.entries(resultConfig) as [ResultType, typeof resultConfig[keyof typeof resultConfig]][]).map(([val, cfg]) => (
                         <Button
                           key={val as string}
@@ -475,7 +558,65 @@ export default function AuditFormPage() {
                           {cfg.label}
                         </Button>
                       ))}
+
+                      <Divider orientation="vertical" flexItem sx={{ mx: 0.5, display: { xs: 'none', sm: 'block' } }} />
+
+                      {/* Botón Pestaña / Subir Evidencia */}
+                      <Button
+                        size="small"
+                        variant={item.evidence_url ? 'contained' : 'outlined'}
+                        color={item.evidence_url ? 'info' : 'inherit'}
+                        startIcon={<AttachFileIcon />}
+                        onClick={() => openEvidenceModal(item._key)}
+                        sx={{ textTransform: 'none', borderRadius: 2 }}
+                      >
+                        {item.evidence_url ? 'Evidencia Adjunta' : 'Evidencias (Foto/Link)'}
+                      </Button>
+
+                      {/* Botón Pestaña / Colaboradores en falta */}
+                      <Button
+                        size="small"
+                        variant={item.non_compliant_collaborators ? 'contained' : 'outlined'}
+                        color={item.non_compliant_collaborators ? 'warning' : 'inherit'}
+                        startIcon={<GroupIcon />}
+                        onClick={() => openCollaboratorsModal(item._key)}
+                        sx={{ textTransform: 'none', borderRadius: 2 }}
+                      >
+                        {item.non_compliant_collaborators ? 'Colaboradores en Falta' : 'Colaboradores en Falta'}
+                      </Button>
                     </Stack>
+
+                    {/* Resumen de Evidencias y Colaboradores */}
+                    {(item.evidence_url || item.non_compliant_collaborators) && (
+                      <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
+                        {item.evidence_url && (
+                          <Chip
+                            icon={<InsertLinkIcon fontSize="small" />}
+                            label="Ver Evidencia"
+                            color="info"
+                            size="small"
+                            variant="outlined"
+                            onClick={() => window.open(item.evidence_url!, '_blank')}
+                            onDelete={() => removeEvidence(item._key)}
+                            deleteIcon={<Tooltip title="Quitar evidencia"><DeleteIcon fontSize="small" /></Tooltip>}
+                            sx={{ fontWeight: 600, cursor: 'pointer' }}
+                          />
+                        )}
+                        {item.non_compliant_collaborators && (
+                          <Chip
+                            icon={<GroupIcon fontSize="small" />}
+                            label={`Colaborador(es): ${item.non_compliant_collaborators}`}
+                            color="warning"
+                            size="small"
+                            variant="outlined"
+                            onClick={() => openCollaboratorsModal(item._key)}
+                            onDelete={() => setItemField(item._key, 'non_compliant_collaborators', null)}
+                            deleteIcon={<Tooltip title="Quitar colaboradores"><DeleteIcon fontSize="small" /></Tooltip>}
+                            sx={{ fontWeight: 600, cursor: 'pointer' }}
+                          />
+                        )}
+                      </Stack>
+                    )}
 
                     {/* Comment (only if not CONFORME) */}
                     {item.result !== null && item.result !== 'CONFORME' && (
@@ -516,6 +657,167 @@ export default function AuditFormPage() {
           {submitting ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Guardar')}
         </Fab>
       </Box>
+
+      {/* Modal / Pestaña para Subir Evidencias o Link */}
+      <Dialog
+        open={evidenceModalItemKey !== null}
+        onClose={() => !uploadingEvidence && setEvidenceModalItemKey(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Evidencias del Punto de Control
+        </DialogTitle>
+        <DialogContent dividers>
+          <Tabs
+            value={evidenceTab}
+            onChange={(_, val) => setEvidenceTab(val)}
+            sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+          >
+            <Tab icon={<CloudUploadIcon />} iconPosition="start" label="Subir Archivo / Foto" />
+            <Tab icon={<InsertLinkIcon />} iconPosition="start" label="Link / URL Web" />
+          </Tabs>
+
+          {evidenceTab === 0 ? (
+            <Box sx={{ py: 2, textAlign: 'center' }}>
+              <input
+                type="file"
+                id="audit-evidence-file"
+                style={{ display: 'none' }}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                onChange={handleFileUpload}
+                disabled={uploadingEvidence}
+              />
+              <label htmlFor="audit-evidence-file">
+                <Button
+                  variant="outlined"
+                  component="span"
+                  startIcon={<CloudUploadIcon />}
+                  disabled={uploadingEvidence}
+                  sx={{ textTransform: 'none', py: 1.5, px: 3, borderRadius: 2 }}
+                >
+                  {uploadingEvidence ? 'Subiendo archivo...' : 'Seleccionar o Tomar Foto / Archivo'}
+                </Button>
+              </label>
+
+              {uploadingEvidence && (
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={20} />
+                  <Typography variant="body2" color="text.secondary">Subiendo evidencia al servidor...</Typography>
+                </Box>
+              )}
+
+              {evidenceUrlInput && !uploadingEvidence && (
+                <Box sx={{ mt: 2, p: 2, backgroundColor: '#f0f7ff', borderRadius: 2, textAlign: 'left' }}>
+                  <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Archivo cargado:
+                  </Typography>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="body2" sx={{ wordBreak: 'break-all', maxWidth: '80%' }}>
+                      {evidenceUrlInput}
+                    </Typography>
+                    <Stack direction="row" spacing={0.5}>
+                      <IconButton size="small" color="primary" onClick={() => window.open(evidenceUrlInput, '_blank')}>
+                        <OpenInNewIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => setEvidenceUrlInput('')}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ py: 2 }}>
+              <TextField
+                fullWidth
+                label="Enlace / URL de la Evidencia"
+                placeholder="https://drive.google.com/... o enlace a la foto"
+                value={evidenceUrlInput}
+                onChange={(e) => setEvidenceUrlInput(e.target.value)}
+                helperText="Pega aquí el enlace de la fotografía, documento o carpeta compartida"
+              />
+              {evidenceUrlInput && (
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<OpenInNewIcon />}
+                    onClick={() => window.open(evidenceUrlInput, '_blank')}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Probar enlace en nueva pestaña
+                  </Button>
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setEvidenceModalItemKey(null)} disabled={uploadingEvidence}>
+            Cancelar
+          </Button>
+          <Button variant="contained" onClick={saveEvidenceUrl} disabled={uploadingEvidence}>
+            Guardar Evidencia
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal / Pestaña para Colaboradores en Falta / Incumplimiento */}
+      <Dialog
+        open={collaboratorModalItemKey !== null}
+        onClose={() => setCollaboratorModalItemKey(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          Colaboradores en Falta o Incumplimiento
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ py: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Seleccione del catálogo o escriba el nombre de los colaboradores asociados a esta no conformidad u observación:
+            </Typography>
+            <Autocomplete
+              multiple
+              freeSolo
+              options={collaboratorOptions}
+              value={selectedCollaborators}
+              onChange={(_, newValue) => setSelectedCollaborators(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Colaboradores"
+                  placeholder="Seleccione o escriba nombres de colaboradores..."
+                  helperText="Presione Enter después de cada nombre si desea ingresar uno nuevo"
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip
+                    {...getTagProps({ index })}
+                    key={option}
+                    label={option}
+                    color="warning"
+                    variant="filled"
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                ))
+              }
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setCollaboratorModalItemKey(null)}>
+            Cancelar
+          </Button>
+          <Button variant="contained" color="warning" onClick={saveCollaborators}>
+            Guardar Colaboradores
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack(s => ({ ...s, open: false }))}>
         <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))} sx={{ width: '100%' }}>

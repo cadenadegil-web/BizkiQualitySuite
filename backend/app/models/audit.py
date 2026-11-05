@@ -76,6 +76,8 @@ class AuditItem(Base):
     # Resultado
     result: Mapped[str | None] = mapped_column(String(30), nullable=True)  # CONFORME / NO_CONFORME / OBSERVACION
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    non_compliant_collaborators: Mapped[str | None] = mapped_column(Text, nullable=True)  # Nombres de colaboradores en falta
+    evidence_url: Mapped[str | None] = mapped_column(Text, nullable=True)  # URL o archivo de evidencia fotográfica/documental
     
     # Relation
     audit: Mapped["Audit"] = relationship("Audit", back_populates="items")

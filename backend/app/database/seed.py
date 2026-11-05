@@ -6,6 +6,7 @@ from app.models.status import Status
 from app.models.norm import Norm
 from app.models.responsible import Responsible
 from app.models.auditor import Auditor
+from app.models.collaborator import Collaborator
 
 
 def seed_database(db: Session):
@@ -90,6 +91,21 @@ def seed_database(db: Session):
             Auditor(name="Auditor Seguridad e Inocuidad", plant="MDH"),
         ]
         db.add_all(auditors)
+
+    # -----------------------
+    # COLABORADORES
+    # -----------------------
+
+    if db.query(Collaborator).count() == 0:
+        collaborators = [
+            Collaborator(name="Operador de Mezcladora", plant="MDH"),
+            Collaborator(name="Operador de Horno", plant="MDH"),
+            Collaborator(name="Auxiliar de Empaque", plant="MDH"),
+            Collaborator(name="Auxiliar de Limpieza y Saneamiento", plant="MDH"),
+            Collaborator(name="Montacarguista / Almacén", plant="MDH"),
+            Collaborator(name="Despachador", plant="MDH"),
+        ]
+        db.add_all(collaborators)
 
     # -----------------------
     # NORMAS FSSC 22000

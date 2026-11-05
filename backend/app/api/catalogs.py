@@ -10,6 +10,7 @@ from app.models.status import Status
 from app.models.norm import Norm
 from app.models.responsible import Responsible
 from app.models.auditor import Auditor
+from app.models.collaborator import Collaborator
 
 
 class CatalogItemSchema(BaseModel):
@@ -415,3 +416,66 @@ def delete_auditor(auditor_id: UUID, db: Session = Depends(get_db)):
     db.delete(auditor)
     db.commit()
     return {"message": "Auditor eliminado exitosamente"}
+
+
+# =========================================================
+# COLABORADORES
+# =========================================================
+
+@router.get("/collaborators", response_model=list[CatalogItemSchema])
+def get_collaborators(db: Session = Depends(get_db)):
+    return db.query(Collaborator).order_by(Collaborator.plant.asc().nullsfirst(), Collaborator.name.asc()).all()
+
+
+@router.post("/collaborators", response_model=CatalogItemSchema)
+def create_collaborator(item: CatalogItemCreateSchema, db: Session = Depends(get_db)):
+    query = db.query(Collaborator).filter(Collaborator.name == item.name)
+    if item.plant:
+        query = query.filter(Collaborator.plant == item.plant)
+    else:
+        query = query.filter(Collaborator.plant.is_(None))
+    if query.first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El colaborador ya existe.")
+    new_collab = Collaborator(name=item.name, plant=item.plant, active=item.active)
+    db.add(new_collab)
+    db.commit()
+    db.refresh(new_collab)
+    return new_collab
+
+
+@router.put("/collaborators/{collab_id}", response_model=CatalogItemSchema)
+def update_collaborator(collab_id: UUID, item: CatalogItemUpdateSchema, db: Session = Depends(get_db)):
+    collab = db.query(Collaborator).filter(Collaborator.id == collab_id).first()
+    if not collab:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador no encontrado.")
+    target_name = item.name if item.name is not None else collab.name
+    target_plant = item.plant if item.plant is not None else collab.plant
+
+    if target_name != collab.name or target_plant != collab.plant:
+        dup_query = db.query(Collaborator).filter(Collaborator.name == target_name, Collaborator.id != collab_id)
+        if target_plant:
+            dup_query = dup_query.filter(Collaborator.plant == target_plant)
+        else:
+            dup_query = dup_query.filter(Collaborator.plant.is_(None))
+        if dup_query.first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe un colaborador con ese nombre.")
+
+    if item.name is not None:
+        collab.name = item.name
+    if item.plant is not None:
+        collab.plant = item.plant
+    if item.active is not None:
+        collab.active = item.active
+    db.commit()
+    db.refresh(collab)
+    return collab
+
+
+@router.delete("/collaborators/{collab_id}")
+def delete_collaborator(collab_id: UUID, db: Session = Depends(get_db)):
+    collab = db.query(Collaborator).filter(Collaborator.id == collab_id).first()
+    if not collab:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador no encontrado.")
+    db.delete(collab)
+    db.commit()
+    return {"message": "Colaborador eliminado exitosamente"}
