@@ -111,7 +111,15 @@ export default function AuditFormPage() {
     }).catch(() => {});
 
     getCatalogItems('collaborators').then(list => {
-      setCollaboratorOptions(list.filter(c => c.active).map(c => c.name));
+      setCollaboratorOptions(
+        list
+          .filter(c => c.active)
+          .map(c => {
+            const code = c.employee_code ? `[${c.employee_code}] ` : "";
+            const pos = c.position ? ` - ${c.position}` : "";
+            return `${code}${c.name}${pos}`;
+          })
+      );
     }).catch(() => {});
 
     if (isEditing && id) {

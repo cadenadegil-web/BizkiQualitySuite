@@ -4,6 +4,8 @@ export interface CatalogItem {
   id: string;
   name: string;
   plant?: string | null;
+  employee_code?: string | null;
+  position?: string | null;
   active: boolean;
   description?: string;
   category?: string;
@@ -25,7 +27,15 @@ export async function getCatalogItems(type: CatalogType): Promise<CatalogItem[]>
 
 export async function createCatalogItem(
   type: CatalogType,
-  data: { name: string; plant?: string; description?: string; category?: string; active?: boolean }
+  data: {
+    name: string;
+    plant?: string;
+    employee_code?: string;
+    position?: string;
+    description?: string;
+    category?: string;
+    active?: boolean;
+  }
 ): Promise<CatalogItem> {
   const response = await api.post(`/catalogs/${type}`, data);
   return response.data;
@@ -34,7 +44,15 @@ export async function createCatalogItem(
 export async function updateCatalogItem(
   type: CatalogType,
   id: string,
-  data: { name?: string; plant?: string | null; description?: string; category?: string; active?: boolean }
+  data: {
+    name?: string;
+    plant?: string | null;
+    employee_code?: string | null;
+    position?: string | null;
+    description?: string;
+    category?: string;
+    active?: boolean;
+  }
 ): Promise<CatalogItem> {
   const response = await api.put(`/catalogs/${type}/${id}`, data);
   return response.data;

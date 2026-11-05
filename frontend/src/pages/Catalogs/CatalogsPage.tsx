@@ -96,6 +96,8 @@ export default function CatalogsPage() {
 
   // Form states
   const [nameInput, setNameInput] = useState("");
+  const [employeeCodeInput, setEmployeeCodeInput] = useState("");
+  const [positionInput, setPositionInput] = useState("");
   const [plantInput, setPlantInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
@@ -111,6 +113,8 @@ export default function CatalogsPage() {
 
   // Column filter states
   const [filterName, setFilterName] = useState("");
+  const [filterEmployeeCode, setFilterEmployeeCode] = useState("");
+  const [filterPosition, setFilterPosition] = useState("");
   const [filterPlant, setFilterPlant] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterDescription, setFilterDescription] = useState("");
@@ -171,6 +175,8 @@ export default function CatalogsPage() {
 
   useEffect(() => {
     setFilterName("");
+    setFilterEmployeeCode("");
+    setFilterPosition("");
     setFilterPlant("");
     setFilterCategory("");
     setFilterDescription("");
@@ -185,6 +191,8 @@ export default function CatalogsPage() {
   const handleOpenCreate = () => {
     setEditingItem(null);
     setNameInput("");
+    setEmployeeCodeInput("");
+    setPositionInput("");
     setPlantInput("");
     setDescriptionInput("");
     setCategoryInput("");
@@ -195,6 +203,8 @@ export default function CatalogsPage() {
   const handleOpenEdit = (item: CatalogItem) => {
     setEditingItem(item);
     setNameInput(item.name);
+    setEmployeeCodeInput(item.employee_code || "");
+    setPositionInput(item.position || "");
     setPlantInput(item.plant || "");
     setDescriptionInput(item.description || "");
     setCategoryInput(item.category || "");
@@ -206,6 +216,8 @@ export default function CatalogsPage() {
     setOpenModal(false);
     setEditingItem(null);
     setNameInput("");
+    setEmployeeCodeInput("");
+    setPositionInput("");
     setPlantInput("");
     setDescriptionInput("");
     setCategoryInput("");
@@ -234,6 +246,14 @@ export default function CatalogsPage() {
       if (editingItem) {
         await updateCatalogItem(currentType, editingItem.id, {
           name: nameInput.trim(),
+          employee_code:
+            currentType === "collaborators"
+              ? (employeeCodeInput.trim() || null)
+              : undefined,
+          position:
+            currentType === "collaborators"
+              ? (positionInput.trim() || null)
+              : undefined,
           plant: isPlantCatalogs ? (plantInput || null) : undefined,
           description: currentType === "norms" ? descriptionInput.trim() : undefined,
           category: currentType === "norms" ? categoryInput.trim() : undefined,
@@ -247,6 +267,14 @@ export default function CatalogsPage() {
       } else {
         await createCatalogItem(currentType, {
           name: nameInput.trim(),
+          employee_code:
+            currentType === "collaborators"
+              ? (employeeCodeInput.trim() || undefined)
+              : undefined,
+          position:
+            currentType === "collaborators"
+              ? (positionInput.trim() || undefined)
+              : undefined,
           plant: isPlantCatalogs ? (plantInput || undefined) : undefined,
           description: currentType === "norms" ? descriptionInput.trim() : undefined,
           category: currentType === "norms" ? categoryInput.trim() : undefined,
@@ -298,6 +326,12 @@ export default function CatalogsPage() {
       currentType === "auditors" ||
       currentType === "collaborators";
     const matchesName = item.name.toLowerCase().includes(filterName.toLowerCase());
+    const matchesEmployeeCode = currentType === "collaborators"
+      ? (item.employee_code || "").toLowerCase().includes(filterEmployeeCode.toLowerCase())
+      : true;
+    const matchesPosition = currentType === "collaborators"
+      ? (item.position || "").toLowerCase().includes(filterPosition.toLowerCase())
+      : true;
     const matchesPlant = isPlant
       ? (!filterPlant || (item.plant || "").toLowerCase() === filterPlant.toLowerCase())
       : true;
@@ -312,7 +346,15 @@ export default function CatalogsPage() {
     if (filterStatus === "active") matchesStatus = item.active === true;
     if (filterStatus === "inactive") matchesStatus = item.active === false;
 
-    return matchesName && matchesPlant && matchesCategory && matchesDescription && matchesStatus;
+    return (
+      matchesName &&
+      matchesEmployeeCode &&
+      matchesPosition &&
+      matchesPlant &&
+      matchesCategory &&
+      matchesDescription &&
+      matchesStatus
+    );
   });
 
   const handleExportPDF = () => {
@@ -424,15 +466,30 @@ export default function CatalogsPage() {
           </DialogTitle>
           <DialogContent dividers>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3, pt: 1 }}>
+              {currentType === "collaborators" && (
+                <TextField
+                  label="ID / Código de Empleado (5 dígitos)"
+                  placeholder="Ej. 10001 (auto-generado si se deja vacío)"
+                  fullWidth
+                  value={employeeCodeInput}
+                  onChange={(e) =>
+                    setEmployeeCodeInput(e.target.value.replace(/\D/g, "").slice(0, 5))
+                  }
+                  disabled={submitting}
+                  helperText="Código numérico de 5 dígitos (ej. 10001). Si se deja en blanco se asigna automático."
+                  inputProps={{ inputMode: "numeric", pattern: "[0-9]*", maxLength: 5 }}
+                />
+              )}
+
               <TextField
-                label="Nombre"
+                label={currentType === "collaborators" ? "Nombre del Colaborador" : "Nombre"}
                 placeholder={
                   currentType === "responsibles"
                     ? "Ej. Juan Pérez (Supervisor)"
                     : currentType === "auditors"
                     ? "Ej. Lic. Carlos Méndez"
                     : currentType === "collaborators"
-                    ? "Ej. Mario Sánchez (Operador)"
+                    ? "Ej. Carlos Martínez"
                     : "Ej. Mezcla, Crítico, Abierto..."
                 }
                 fullWidth
@@ -440,8 +497,19 @@ export default function CatalogsPage() {
                 onChange={(e) => setNameInput(e.target.value)}
                 disabled={submitting}
                 required
-                autoFocus
+                autoFocus={currentType !== "collaborators"}
               />
+
+              {currentType === "collaborators" && (
+                <TextField
+                  label="Cargo del Colaborador"
+                  placeholder="Ej. Auxiliar de Empaque, Operador de Horno..."
+                  fullWidth
+                  value={positionInput}
+                  onChange={(e) => setPositionInput(e.target.value)}
+                  disabled={submitting}
+                />
+              )}
 
               {(currentType === "areas" ||
                 currentType === "responsibles" ||
@@ -572,13 +640,24 @@ export default function CatalogsPage() {
       currentType === "responsibles" ||
       currentType === "auditors" ||
       currentType === "collaborators";
+    const isCollaborator = currentType === "collaborators";
 
     return (
       <TableContainer>
         <Table>
           <TableHead sx={{ backgroundColor: "#1976d2" }}>
             <TableRow>
-              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Nombre</TableCell>
+              {isCollaborator && (
+                <TableCell sx={{ color: "#fff", fontWeight: "bold", width: 110 }}>
+                  ID
+                </TableCell>
+              )}
+              <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>
+                {isCollaborator ? "Colaborador" : "Nombre"}
+              </TableCell>
+              {isCollaborator && (
+                <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Cargo</TableCell>
+              )}
               {isPlant && (
                 <TableCell sx={{ color: "#fff", fontWeight: "bold" }}>Planta</TableCell>
               )}
@@ -590,9 +669,24 @@ export default function CatalogsPage() {
               </TableCell>
             </TableRow>
             <TableRow>
+              {isCollaborator && (
+                <TableCell sx={{ p: 1, width: 110 }}>
+                  <TextField
+                    placeholder="Filtrar ID..."
+                    size="small"
+                    variant="outlined"
+                    value={filterEmployeeCode}
+                    onChange={(e) => setFilterEmployeeCode(e.target.value)}
+                    sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                    fullWidth
+                  />
+                </TableCell>
+              )}
               <TableCell sx={{ p: 1 }}>
                 <TextField
-                  placeholder="Filtrar por nombre..."
+                  placeholder={
+                    isCollaborator ? "Filtrar colaborador..." : "Filtrar por nombre..."
+                  }
                   size="small"
                   variant="outlined"
                   value={filterName}
@@ -601,6 +695,19 @@ export default function CatalogsPage() {
                   fullWidth
                 />
               </TableCell>
+              {isCollaborator && (
+                <TableCell sx={{ p: 1 }}>
+                  <TextField
+                    placeholder="Filtrar cargo..."
+                    size="small"
+                    variant="outlined"
+                    value={filterPosition}
+                    onChange={(e) => setFilterPosition(e.target.value)}
+                    sx={{ backgroundColor: "#fff", borderRadius: 1 }}
+                    fullWidth
+                  />
+                </TableCell>
+              )}
               {isPlant && (
                 <TableCell sx={{ p: 1 }}>
                   <TextField
@@ -670,7 +777,32 @@ export default function CatalogsPage() {
           <TableBody>
             {filteredItems.map((item) => (
               <TableRow key={item.id} hover>
+                {isCollaborator && (
+                  <TableCell sx={{ width: 110 }}>
+                    <Chip
+                      label={item.employee_code || "—"}
+                      size="small"
+                      sx={{
+                        fontWeight: 700,
+                        fontFamily: "monospace",
+                        fontSize: "0.85rem",
+                        backgroundColor: "#e8f0fe",
+                        color: "#1967d2",
+                        borderRadius: 1,
+                      }}
+                    />
+                  </TableCell>
+                )}
                 <TableCell sx={{ fontWeight: 500 }}>{item.name}</TableCell>
+                {isCollaborator && (
+                  <TableCell sx={{ color: "text.primary" }}>
+                    {item.position || (
+                      <Typography variant="body2" color="text.secondary">
+                        —
+                      </Typography>
+                    )}
+                  </TableCell>
+                )}
                 {isPlant && (
                   <TableCell>
                     {item.plant ? (
@@ -739,7 +871,7 @@ export default function CatalogsPage() {
             {filteredItems.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={currentType === "norms" ? 5 : isPlant ? 4 : 3}
+                  colSpan={isCollaborator ? 6 : currentType === "norms" ? 5 : isPlant ? 4 : 3}
                   align="center"
                   sx={{ py: 4, color: "text.secondary" }}
                 >

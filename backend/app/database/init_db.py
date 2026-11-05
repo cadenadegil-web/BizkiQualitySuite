@@ -128,10 +128,44 @@ def create_database() -> None:
         """
         CREATE TABLE IF NOT EXISTS collaborators (
             id UUID PRIMARY KEY,
+            employee_code VARCHAR(10),
             name VARCHAR(150) NOT NULL,
+            position VARCHAR(150),
             plant VARCHAR(100),
             active BOOLEAN NOT NULL DEFAULT TRUE
         );
+        """,
+        "ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS employee_code VARCHAR(10);",
+        "ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS position VARCHAR(150);",
+        """
+        UPDATE collaborators
+        SET employee_code = '10001', name = 'Carlos Martínez', position = 'Auxiliar de Empaque'
+        WHERE name = 'Auxiliar de Empaque' AND (employee_code IS NULL OR employee_code = '');
+        """,
+        """
+        UPDATE collaborators
+        SET employee_code = '10002', name = 'María Gómez', position = 'Auxiliar de Limpieza y Saneamiento'
+        WHERE name = 'Auxiliar de Limpieza y Saneamiento' AND (employee_code IS NULL OR employee_code = '');
+        """,
+        """
+        UPDATE collaborators
+        SET employee_code = '10003', name = 'José Rodríguez', position = 'Despachador'
+        WHERE name = 'Despachador' AND (employee_code IS NULL OR employee_code = '');
+        """,
+        """
+        UPDATE collaborators
+        SET employee_code = '10004', name = 'Pedro Morales', position = 'Montacarguista / Almacén'
+        WHERE name = 'Montacarguista / Almacén' AND (employee_code IS NULL OR employee_code = '');
+        """,
+        """
+        UPDATE collaborators
+        SET employee_code = '10005', name = 'Luis Castillo', position = 'Operador de Horno'
+        WHERE name = 'Operador de Horno' AND (employee_code IS NULL OR employee_code = '');
+        """,
+        """
+        UPDATE collaborators
+        SET employee_code = '10006', name = 'Juan Pérez', position = 'Operador de Mezcladora'
+        WHERE name = 'Operador de Mezcladora' AND (employee_code IS NULL OR employee_code = '');
         """,
         "ALTER TABLE audit_items ADD COLUMN IF NOT EXISTS non_compliant_collaborators TEXT;",
         "ALTER TABLE audit_items ADD COLUMN IF NOT EXISTS evidence_url TEXT;",

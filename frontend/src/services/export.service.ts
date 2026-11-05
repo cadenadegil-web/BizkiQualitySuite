@@ -170,16 +170,35 @@ export function exportCatalogToPDF(items: CatalogItem[], typeName: string): void
   doc.text(`Generado: ${now}`, pageWidth - 14, 14, { align: "right" });
 
   // Configuración de columnas
-  const isNorm = items.some(item => item.category !== undefined || item.description !== undefined);
-  const isArea = typeName.toLowerCase().includes("área") || items.some(item => item.plant !== undefined);
-  const headers = isNorm 
+  const isCollaborator =
+    typeName.toLowerCase().includes("colaborador") ||
+    items.some((item) => item.employee_code !== undefined || item.position !== undefined);
+  const isNorm =
+    !isCollaborator &&
+    items.some((item) => item.category !== undefined || item.description !== undefined);
+  const isArea =
+    !isCollaborator &&
+    (typeName.toLowerCase().includes("área") || items.some((item) => item.plant !== undefined));
+
+  const headers = isCollaborator
+    ? ["ID", "Nombre", "Cargo", "Planta", "Estado"]
+    : isNorm
     ? ["Nombre", "Categoría", "Punto de Control", "Estado"]
     : isArea
     ? ["Nombre", "Planta", "Estado"]
     : ["Nombre", "Estado"];
 
-  const body = items.map(item => {
+  const body = items.map((item) => {
     const status = item.active ? "Activo" : "Inactivo";
+    if (isCollaborator) {
+      return [
+        item.employee_code ?? "—",
+        item.name,
+        item.position ?? "—",
+        item.plant ?? "—",
+        status,
+      ];
+    }
     if (isNorm) {
       return [item.name, item.category ?? "—", item.description ?? "—", status];
     }
@@ -205,19 +224,31 @@ export function exportCatalogToPDF(items: CatalogItem[], typeName: string): void
     alternateRowStyles: {
       fillColor: [240, 246, 255],
     },
-    columnStyles: isNorm ? {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 50 },
-      2: { cellWidth: 70 },
-      3: { cellWidth: 20 },
-    } : isArea ? {
-      0: { cellWidth: 80 },
-      1: { cellWidth: 70 },
-      2: { cellWidth: 30 },
-    } : {
-      0: { cellWidth: 150 },
-      1: { cellWidth: 30 },
-    }
+    columnStyles: isCollaborator
+      ? {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 35 },
+          4: { cellWidth: 20 },
+        }
+      : isNorm
+      ? {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 70 },
+          3: { cellWidth: 20 },
+        }
+      : isArea
+      ? {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 30 },
+        }
+      : {
+          0: { cellWidth: 150 },
+          1: { cellWidth: 30 },
+        },
   });
 
   const pageCount = doc.getNumberOfPages();
@@ -237,34 +268,59 @@ export function exportCatalogToPDF(items: CatalogItem[], typeName: string): void
 }
 
 export function exportCatalogToExcel(items: CatalogItem[], typeName: string): void {
-  const isNorm = items.some(item => item.category !== undefined || item.description !== undefined);
-  const isArea = typeName.toLowerCase().includes("área") || items.some(item => item.plant !== undefined);
-  const rows = items.map(item => {
+  const isCollaborator =
+    typeName.toLowerCase().includes("colaborador") ||
+    items.some((item) => item.employee_code !== undefined || item.position !== undefined);
+  const isNorm =
+    !isCollaborator &&
+    items.some((item) => item.category !== undefined || item.description !== undefined);
+  const isArea =
+    !isCollaborator &&
+    (typeName.toLowerCase().includes("área") || items.some((item) => item.plant !== undefined));
+
+  const rows = items.map((item) => {
     const status = item.active ? "Activo" : "Inactivo";
+    if (isCollaborator) {
+      return {
+        ID: item.employee_code ?? "—",
+        Nombre: item.name,
+        Cargo: item.position ?? "—",
+        Planta: item.plant ?? "—",
+        Estado: status,
+      };
+    }
     if (isNorm) {
       return {
         Nombre: item.name,
         Categoría: item.category ?? "—",
         "Punto de Control": item.description ?? "—",
-        Estado: status
+        Estado: status,
       };
     }
     if (isArea) {
       return {
         Nombre: item.name,
         Planta: item.plant ?? "—",
-        Estado: status
+        Estado: status,
       };
     }
     return {
       Nombre: item.name,
-      Estado: status
+      Estado: status,
     };
   });
 
   const worksheet = XLSX.utils.json_to_sheet(rows);
 
-  if (isNorm) {
+  if (isCollaborator) {
+    worksheet["!cols"] = [
+      { wch: 12 }, // ID
+      { wch: 30 }, // Nombre
+      { wch: 30 }, // Cargo
+      { wch: 25 }, // Planta
+      { wch: 12 }, // Estado
+    ];
+  } else if (isNorm) {
     worksheet["!cols"] = [
       { wch: 25 }, // Nombre
       { wch: 30 }, // Categoría

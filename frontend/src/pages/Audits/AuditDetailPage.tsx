@@ -64,7 +64,17 @@ export default function AuditDetailPage() {
 
   useEffect(() => {
     getCatalogItems('collaborators')
-      .then((list) => setCollaboratorOptions(list.filter((c) => c.active).map((c) => c.name)))
+      .then((list) =>
+        setCollaboratorOptions(
+          list
+            .filter((c) => c.active)
+            .map((c) => {
+              const code = c.employee_code ? `[${c.employee_code}] ` : "";
+              const pos = c.position ? ` - ${c.position}` : "";
+              return `${code}${c.name}${pos}`;
+            })
+        )
+      )
       .catch(() => {});
   }, []);
 

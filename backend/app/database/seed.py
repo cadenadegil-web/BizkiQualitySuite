@@ -98,12 +98,12 @@ def seed_database(db: Session):
 
     if db.query(Collaborator).count() == 0:
         collaborators = [
-            Collaborator(name="Operador de Mezcladora", plant="MDH"),
-            Collaborator(name="Operador de Horno", plant="MDH"),
-            Collaborator(name="Auxiliar de Empaque", plant="MDH"),
-            Collaborator(name="Auxiliar de Limpieza y Saneamiento", plant="MDH"),
-            Collaborator(name="Montacarguista / Almacén", plant="MDH"),
-            Collaborator(name="Despachador", plant="MDH"),
+            Collaborator(employee_code="10001", name="Carlos Martínez", position="Auxiliar de Empaque", plant="MDH"),
+            Collaborator(employee_code="10002", name="María Gómez", position="Auxiliar de Limpieza y Saneamiento", plant="MDH"),
+            Collaborator(employee_code="10003", name="José Rodríguez", position="Despachador", plant="MDH"),
+            Collaborator(employee_code="10004", name="Pedro Morales", position="Montacarguista / Almacén", plant="MDH"),
+            Collaborator(employee_code="10005", name="Luis Castillo", position="Operador de Horno", plant="MDH"),
+            Collaborator(employee_code="10006", name="Juan Pérez", position="Operador de Mezcladora", plant="MDH"),
         ]
         db.add_all(collaborators)
 

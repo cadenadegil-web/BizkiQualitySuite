@@ -17,6 +17,10 @@ class CatalogItemSchema(BaseModel):
     id: UUID
     name: str
     plant: str | None = None
+    employee_code: str | None = None
+    position: str | None = None
+    description: str | None = None
+    category: str | None = None
     active: bool
 
     class Config:
@@ -26,12 +30,20 @@ class CatalogItemSchema(BaseModel):
 class CatalogItemCreateSchema(BaseModel):
     name: str
     plant: str | None = None
+    employee_code: str | None = None
+    position: str | None = None
+    description: str | None = None
+    category: str | None = None
     active: bool = True
 
 
 class CatalogItemUpdateSchema(BaseModel):
     name: str | None = None
     plant: str | None = None
+    employee_code: str | None = None
+    position: str | None = None
+    description: str | None = None
+    category: str | None = None
     active: bool | None = None
 
 
@@ -424,19 +436,34 @@ def delete_auditor(auditor_id: UUID, db: Session = Depends(get_db)):
 
 @router.get("/collaborators", response_model=list[CatalogItemSchema])
 def get_collaborators(db: Session = Depends(get_db)):
-    return db.query(Collaborator).order_by(Collaborator.plant.asc().nullsfirst(), Collaborator.name.asc()).all()
+    return db.query(Collaborator).order_by(Collaborator.employee_code.asc().nullslast(), Collaborator.name.asc()).all()
 
 
 @router.post("/collaborators", response_model=CatalogItemSchema)
 def create_collaborator(item: CatalogItemCreateSchema, db: Session = Depends(get_db)):
+    code = (item.employee_code or "").strip()
+    if code:
+        if db.query(Collaborator).filter(Collaborator.employee_code == code).first():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe un colaborador con este código ID.")
+    else:
+        total = db.query(Collaborator).count() + 1
+        code = f"{10000 + total}"
+
     query = db.query(Collaborator).filter(Collaborator.name == item.name)
     if item.plant:
         query = query.filter(Collaborator.plant == item.plant)
     else:
         query = query.filter(Collaborator.plant.is_(None))
     if query.first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El colaborador ya existe.")
-    new_collab = Collaborator(name=item.name, plant=item.plant, active=item.active)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El colaborador ya existe para esta planta.")
+
+    new_collab = Collaborator(
+        employee_code=code,
+        name=item.name,
+        position=item.position,
+        plant=item.plant,
+        active=item.active,
+    )
     db.add(new_collab)
     db.commit()
     db.refresh(new_collab)
@@ -460,8 +487,19 @@ def update_collaborator(collab_id: UUID, item: CatalogItemUpdateSchema, db: Sess
         if dup_query.first():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe un colaborador con ese nombre.")
 
+    if item.employee_code is not None:
+        code_clean = item.employee_code.strip()
+        if code_clean and code_clean != collab.employee_code:
+            if db.query(Collaborator).filter(Collaborator.employee_code == code_clean, Collaborator.id != collab_id).first():
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe un colaborador con este código ID.")
+            collab.employee_code = code_clean
+        elif not code_clean:
+            collab.employee_code = None
+
     if item.name is not None:
         collab.name = item.name
+    if item.position is not None:
+        collab.position = item.position.strip() or None
     if item.plant is not None:
         collab.plant = item.plant
     if item.active is not None:

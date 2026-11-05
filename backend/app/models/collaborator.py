@@ -20,10 +20,21 @@ class Collaborator(Base):
         default=uuid.uuid4,
     )
 
+    employee_code: Mapped[str | None] = mapped_column(
+        String(10),
+        nullable=True,
+        index=True,
+    )
+
     name: Mapped[str] = mapped_column(
         String(150),
         nullable=False,
         index=True,
+    )
+
+    position: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
     )
 
     plant: Mapped[str | None] = mapped_column(
