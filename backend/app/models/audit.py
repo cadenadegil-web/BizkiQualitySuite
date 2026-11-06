@@ -27,7 +27,8 @@ class Audit(Base):
     
     # Encabezado
     audit_date: Mapped[date] = mapped_column(Date, nullable=False)
-    shift: Mapped[str] = mapped_column(String(20), nullable=False)  # Mañana / Tarde / Noche
+    shift: Mapped[str | None] = mapped_column(String(20), nullable=True, default=None)  # Histórico / Opcional
+    management: Mapped[str | None] = mapped_column(String(150), nullable=True)  # Gerencia elegida del catálogo
     auditor: Mapped[str] = mapped_column(String(150), nullable=False)
     area_responsible: Mapped[str | None] = mapped_column(String(150), nullable=True)
     plant: Mapped[str | None] = mapped_column(String(100), nullable=True)

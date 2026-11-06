@@ -183,7 +183,7 @@ export default function AuditDetailPage() {
         <Box sx={{ flex: 1 }}>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>{audit.code}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {(audit.plant || audit.area?.plant || 'MDH')} · {audit.area?.name ?? '—'} · {audit.shift} · {new Intl.DateTimeFormat('es-ES').format(new Date(audit.audit_date + 'T00:00:00'))}
+            {(audit.plant || audit.area?.plant || 'MDH')} · {audit.area?.name ?? '—'} · {audit.management ? `Gerencia: ${audit.management}` : (audit.shift || '—')} · {new Intl.DateTimeFormat('es-ES').format(new Date(audit.audit_date + 'T00:00:00'))}
           </Typography>
         </Box>
         <Stack direction="row" gap={1}>
@@ -218,9 +218,10 @@ export default function AuditDetailPage() {
       </Stack>
 
       {/* Info cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(5, 1fr)' }, gap: 2, mb: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(6, 1fr)' }, gap: 2, mb: 3 }}>
         {[
           { label: 'Planta', value: audit.plant || audit.area?.plant || 'MDH' },
+          { label: 'Gerencia', value: audit.management || audit.shift || '—' },
           { label: 'Responsable de Área', value: audit.area_responsible || '—' },
           { label: 'Auditor', value: audit.auditor },
           { label: 'Estado', value: <Chip label={audit.status === 'COMPLETADA' ? 'Completada' : 'Pendiente'} color={audit.status === 'COMPLETADA' ? 'success' : 'warning'} size="small" /> },

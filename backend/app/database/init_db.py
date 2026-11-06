@@ -194,6 +194,8 @@ def create_database() -> None:
         "ALTER TABLE audits ADD COLUMN IF NOT EXISTS measurement_objective VARCHAR(255);",
         "ALTER TABLE audits ADD COLUMN IF NOT EXISTS plant VARCHAR(100);",
         "ALTER TABLE audits ADD COLUMN IF NOT EXISTS area_responsible VARCHAR(150);",
+        "ALTER TABLE audits ADD COLUMN IF NOT EXISTS management VARCHAR(150);",
+        "ALTER TABLE audits ALTER COLUMN shift DROP NOT NULL;",
         "ALTER TABLE audits ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;",
         "ALTER TABLE audit_items ADD COLUMN IF NOT EXISTS objective VARCHAR(100);",
         """

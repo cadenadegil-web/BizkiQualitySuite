@@ -83,6 +83,7 @@ export default function AuditsPage() {
   const [normsCatalog, setNormsCatalog] = useState<{ norm: string; control_point: string }[]>([]);
   const [auditorsCatalog, setAuditorsCatalog] = useState<{ id: string; name: string; plant?: string | null }[]>([]);
   const [responsiblesCatalog, setResponsiblesCatalog] = useState<{ id: string; name: string; plant?: string | null }[]>([]);
+  const [managementsCatalog, setManagementsCatalog] = useState<{ id: string; name: string }[]>([]);
 
   // Filtros en pantalla
   const [tablePlantFilter, setTablePlantFilter] = useState<string>('ALL');
@@ -94,7 +95,7 @@ export default function AuditsPage() {
   const [editingAudit, setEditingAudit] = useState<Audit | null>(null);
   const [formPlant, setFormPlant] = useState<string>('MDH');
   const [formAreaId, setFormAreaId] = useState<string>('');
-  const [formShift, setFormShift] = useState<string>('Mañana');
+  const [formManagement, setFormManagement] = useState<string>('Operaciones');
   const [formDate, setFormDate] = useState<string>(todayStr);
   const [formAuditor, setFormAuditor] = useState<string>(username || '');
   const [formAreaResponsible, setFormAreaResponsible] = useState<string>('');
@@ -149,6 +150,13 @@ export default function AuditsPage() {
         setResponsiblesCatalog(active.map((r) => ({ id: r.id, name: r.name, plant: r.plant })));
       })
       .catch(() => {});
+
+    getCatalogItems('managements')
+      .then((list) => {
+        const active = list.filter((m) => m.active);
+        setManagementsCatalog(active.map((m) => ({ id: m.id, name: m.name })));
+      })
+      .catch(() => {});
   }, []);
 
   const auditorOptions = useMemo(() => {
@@ -158,6 +166,12 @@ export default function AuditsPage() {
   const responsibleOptions = useMemo(() => {
     return Array.from(new Set(responsiblesCatalog.map((r) => r.name))).filter(Boolean);
   }, [responsiblesCatalog]);
+
+  const managementOptions = useMemo(() => {
+    const fromCat = managementsCatalog.map((m) => m.name).filter(Boolean);
+    const defaults = ['Gestión y Gente', 'Operaciones', 'Calidad', 'Finanzas', 'Mantenimiento', 'Producción'];
+    return Array.from(new Set([...fromCat, ...defaults]));
+  }, [managementsCatalog]);
 
   const plantOptions = useMemo(() => {
     const customPlants = areas
@@ -176,7 +190,7 @@ export default function AuditsPage() {
     setEditingAudit(null);
     setFormPlant('MDH');
     setFormAreaId(areas[0]?.id || '');
-    setFormShift('Mañana');
+    setFormManagement('Operaciones');
     setFormDate(todayStr);
     setFormAuditor(username || '');
     setFormAreaResponsible('');
@@ -188,7 +202,7 @@ export default function AuditsPage() {
     setEditingAudit(row);
     setFormPlant(getAuditPlant(row));
     setFormAreaId(row.area_id);
-    setFormShift(row.shift || 'Mañana');
+    setFormManagement(row.management || row.shift || 'Operaciones');
     setFormDate((row.audit_date || todayStr).slice(0, 10));
     setFormAuditor(row.auditor || username || '');
     setFormAreaResponsible(row.area_responsible || '');
@@ -205,6 +219,10 @@ export default function AuditsPage() {
       showSnack('Selecciona un área.', 'error');
       return;
     }
+    if (!formManagement.trim()) {
+      showSnack('Selecciona una gerencia.', 'error');
+      return;
+    }
     if (!formAuditor.trim()) {
       showSnack('Ingresa el nombre del auditor.', 'error');
       return;
@@ -216,7 +234,7 @@ export default function AuditsPage() {
         const updated = await updateAudit(editingAudit.id, {
           plant: formPlant.trim(),
           area_id: formAreaId,
-          shift: formShift,
+          management: formManagement.trim(),
           audit_date: formDate,
           auditor: formAuditor.trim(),
           area_responsible: formAreaResponsible.trim() || undefined,
@@ -239,7 +257,7 @@ export default function AuditsPage() {
         const created = await createAudit({
           plant: formPlant.trim(),
           area_id: formAreaId,
-          shift: formShift,
+          management: formManagement.trim(),
           audit_date: formDate,
           auditor: formAuditor.trim(),
           area_responsible: formAreaResponsible.trim() || undefined,
@@ -524,7 +542,13 @@ export default function AuditsPage() {
       },
     },
     { field: 'auditor', headerName: 'Auditor', flex: 1, minWidth: 125 },
-    { field: 'shift', headerName: 'Turno', flex: 0.75, minWidth: 90 },
+    {
+      field: 'management',
+      headerName: 'Gerencia',
+      flex: 0.9,
+      minWidth: 115,
+      valueGetter: (_: unknown, row: Audit) => row.management || row.shift || '—',
+    },
     {
       field: 'score',
       headerName: 'Puntaje',
@@ -825,15 +849,15 @@ export default function AuditsPage() {
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <FormControl fullWidth size="small" required>
-                <InputLabel>Turno</InputLabel>
+                <InputLabel>Gerencia</InputLabel>
                 <Select
-                  label="Turno"
-                  value={formShift}
-                  onChange={(e) => setFormShift(e.target.value)}
+                  label="Gerencia"
+                  value={formManagement}
+                  onChange={(e) => setFormManagement(e.target.value)}
                 >
-                  <MenuItem value="Mañana">Mañana</MenuItem>
-                  <MenuItem value="Tarde">Tarde</MenuItem>
-                  <MenuItem value="Noche">Noche</MenuItem>
+                  {managementOptions.map((m) => (
+                    <MenuItem key={m} value={m}>{m}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 

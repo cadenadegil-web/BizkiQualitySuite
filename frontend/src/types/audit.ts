@@ -16,7 +16,8 @@ export interface Audit {
   id: string;
   code: string;
   audit_date: string;   // ISO date string
-  shift: string;        // Mañana / Tarde / Noche
+  shift?: string | null;        // Histórico / Opcional
+  management?: string | null;   // Gerencia del catálogo
   auditor: string;
   area_responsible?: string | null;
   plant?: string | null;
@@ -46,7 +47,8 @@ export interface AuditItemCreate {
 
 export interface AuditCreate {
   audit_date: string;
-  shift: string;
+  shift?: string;
+  management?: string;
   auditor: string;
   area_responsible?: string;
   plant?: string;
@@ -59,6 +61,7 @@ export interface AuditCreate {
 export interface AuditUpdate {
   audit_date?: string;
   shift?: string;
+  management?: string;
   auditor?: string;
   area_responsible?: string;
   plant?: string;

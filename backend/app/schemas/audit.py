@@ -50,7 +50,8 @@ class AuditItemResponse(AuditItemBase):
 
 class AuditBase(BaseModel):
     audit_date: date
-    shift: str
+    shift: Optional[str] = None
+    management: Optional[str] = None
     auditor: str
     area_responsible: Optional[str] = None
     plant: Optional[str] = None
@@ -67,6 +68,7 @@ class AuditCreate(AuditBase):
 class AuditUpdate(BaseModel):
     audit_date: Optional[date] = None
     shift: Optional[str] = None
+    management: Optional[str] = None
     auditor: Optional[str] = None
     area_responsible: Optional[str] = None
     plant: Optional[str] = None

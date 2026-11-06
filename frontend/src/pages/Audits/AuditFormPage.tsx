@@ -54,7 +54,15 @@ export default function AuditFormPage() {
   const [areas, setAreas] = useState<{ id: string; name: string; plant?: string }[]>([]);
   const [plant, setPlant] = useState('MDH');
   const [areaId, setAreaId] = useState('');
-  const [shift, setShift] = useState('Mañana');
+  const [management, setManagement] = useState<string>('Operaciones');
+  const [managementOptions, setManagementOptions] = useState<string[]>([
+    'Gestión y Gente',
+    'Operaciones',
+    'Calidad',
+    'Finanzas',
+    'Mantenimiento',
+    'Producción',
+  ]);
   const [auditor, setAuditor] = useState('');
   const [areaResponsible, setAreaResponsible] = useState('');
   const [auditDate, setAuditDate] = useState(new Date().toISOString().slice(0, 10));
@@ -124,13 +132,20 @@ export default function AuditFormPage() {
       );
     }).catch(() => {});
 
+    getCatalogItems('managements').then(list => {
+      const active = list.filter(m => m.active).map(m => m.name);
+      if (active.length > 0) {
+        setManagementOptions(active);
+      }
+    }).catch(() => {});
+
     if (isEditing && id) {
       getAudit(id)
         .then(audit => {
           setAuditCode(audit.code);
           setPlant(audit.plant || audit.area?.plant || 'MDH');
           setAreaId(audit.area_id);
-          setShift(audit.shift);
+          setManagement(audit.management || audit.shift || 'Operaciones');
           setAuditor(audit.auditor);
           setAreaResponsible(audit.area_responsible || '');
           setAuditDate(audit.audit_date);
@@ -277,11 +292,12 @@ export default function AuditFormPage() {
   const handleSubmit = async () => {
     if (!plant.trim()) { setSnack({ open: true, message: 'Selecciona o ingresa la planta.', severity: 'error' }); return; }
     if (!areaId) { setSnack({ open: true, message: 'Selecciona un área.', severity: 'error' }); return; }
+    if (!management.trim()) { setSnack({ open: true, message: 'Selecciona una gerencia.', severity: 'error' }); return; }
     if (!auditor.trim()) { setSnack({ open: true, message: 'Ingresa el nombre del auditor.', severity: 'error' }); return; }
     setSubmitting(true);
     const payload = {
       audit_date: auditDate,
-      shift,
+      management: management.trim(),
       auditor: auditor.trim(),
       area_responsible: areaResponsible.trim() || undefined,
       plant: plant.trim(),
@@ -397,11 +413,18 @@ export default function AuditFormPage() {
             </FormControl>
 
             <FormControl fullWidth required>
-              <InputLabel>Turno</InputLabel>
-              <Select value={shift} label="Turno" onChange={e => setShift(e.target.value)}>
-                <MenuItem value="Mañana">Mañana</MenuItem>
-                <MenuItem value="Tarde">Tarde</MenuItem>
-                <MenuItem value="Noche">Noche</MenuItem>
+              <InputLabel id="management-select-label">Gerencia</InputLabel>
+              <Select
+                labelId="management-select-label"
+                value={management}
+                label="Gerencia"
+                onChange={e => setManagement(e.target.value)}
+              >
+                {managementOptions.map(m => (
+                  <MenuItem key={m} value={m}>
+                    {m}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
 
