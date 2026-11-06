@@ -39,6 +39,7 @@ import MenuBookIcon from "@mui/icons-material/MenuBook";
 import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
 import BadgeIcon from "@mui/icons-material/Badge";
 import GroupIcon from "@mui/icons-material/Group";
+import BusinessIcon from "@mui/icons-material/Business";
 import TableViewIcon from "@mui/icons-material/TableView";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 
@@ -129,6 +130,7 @@ export default function CatalogsPage() {
       case 4: return "responsibles";
       case 5: return "auditors";
       case 6: return "collaborators";
+      case 7: return "managements";
       default: return "areas";
     }
   };
@@ -144,6 +146,7 @@ export default function CatalogsPage() {
       case 4: return "Responsables";
       case 5: return "Auditores";
       case 6: return "Colaboradores";
+      case 7: return "Gerencias";
       default: return "Catálogo";
     }
   };
@@ -239,7 +242,8 @@ export default function CatalogsPage() {
       currentType === "areas" ||
       currentType === "responsibles" ||
       currentType === "auditors" ||
-      currentType === "collaborators";
+      currentType === "collaborators" ||
+      currentType === "managements";
 
     setSubmitting(true);
     try {
@@ -324,7 +328,8 @@ export default function CatalogsPage() {
       currentType === "areas" ||
       currentType === "responsibles" ||
       currentType === "auditors" ||
-      currentType === "collaborators";
+      currentType === "collaborators" ||
+      currentType === "managements";
     const matchesName = item.name.toLowerCase().includes(filterName.toLowerCase());
     const matchesEmployeeCode = currentType === "collaborators"
       ? (item.employee_code || "").toLowerCase().includes(filterEmployeeCode.toLowerCase())
@@ -431,6 +436,7 @@ export default function CatalogsPage() {
           <Tab icon={<AssignmentIndIcon />} iconPosition="start" label="Responsables" />
           <Tab icon={<BadgeIcon />} iconPosition="start" label="Auditores" />
           <Tab icon={<GroupIcon />} iconPosition="start" label="Colaboradores" />
+          <Tab icon={<BusinessIcon />} iconPosition="start" label="Gerencias" />
         </Tabs>
 
         <CustomTabPanel value={tabValue} index={0}>
@@ -452,6 +458,9 @@ export default function CatalogsPage() {
           {renderCatalogTable()}
         </CustomTabPanel>
         <CustomTabPanel value={tabValue} index={6}>
+          {renderCatalogTable()}
+        </CustomTabPanel>
+        <CustomTabPanel value={tabValue} index={7}>
           {renderCatalogTable()}
         </CustomTabPanel>
       </Paper>
@@ -482,7 +491,13 @@ export default function CatalogsPage() {
               )}
 
               <TextField
-                label={currentType === "collaborators" ? "Nombre del Colaborador" : "Nombre"}
+                label={
+                  currentType === "collaborators"
+                    ? "Nombre del Colaborador"
+                    : currentType === "managements"
+                    ? "Nombre de la Gerencia"
+                    : "Nombre"
+                }
                 placeholder={
                   currentType === "responsibles"
                     ? "Ej. Juan Pérez (Supervisor)"
@@ -490,6 +505,8 @@ export default function CatalogsPage() {
                     ? "Ej. Lic. Carlos Méndez"
                     : currentType === "collaborators"
                     ? "Ej. Carlos Martínez"
+                    : currentType === "managements"
+                    ? "Ej. Operaciones, Calidad, Gestión y Gente..."
                     : "Ej. Mezcla, Crítico, Abierto..."
                 }
                 fullWidth
@@ -514,7 +531,8 @@ export default function CatalogsPage() {
               {(currentType === "areas" ||
                 currentType === "responsibles" ||
                 currentType === "auditors" ||
-                currentType === "collaborators") && (
+                currentType === "collaborators" ||
+                currentType === "managements") && (
                 <TextField
                   select
                   label="Planta"
@@ -526,6 +544,8 @@ export default function CatalogsPage() {
                   helperText={
                     currentType === "areas"
                       ? "Selecciona la planta a la que pertenece esta área"
+                      : currentType === "managements"
+                      ? "Planta asociada (opcional - dejar vacío para nivel corporativo / general)"
                       : "Planta asignada (opcional - dejar vacío para todas las plantas)"
                   }
                 >
@@ -639,7 +659,8 @@ export default function CatalogsPage() {
       currentType === "areas" ||
       currentType === "responsibles" ||
       currentType === "auditors" ||
-      currentType === "collaborators";
+      currentType === "collaborators" ||
+      currentType === "managements";
     const isCollaborator = currentType === "collaborators";
 
     return (

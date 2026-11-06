@@ -1,7 +1,8 @@
+import mimetypes
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
@@ -177,12 +178,16 @@ def individual_report(
 
 @router.post("/upload-evidence")
 def upload_evidence(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
     stored_name, storage_path = save_file(file, "audits")
+    base_url = str(request.base_url).rstrip("/")
+    rel_url = f"/audits/evidence/{stored_name}"
     return {
-        "url": f"/audits/evidence/{stored_name}",
+        "url": f"{base_url}{rel_url}",
+        "relative_url": rel_url,
         "original_name": file.filename,
         "stored_name": stored_name,
     }
@@ -193,4 +198,12 @@ def get_evidence_file(filename: str):
     file_path = BASE_STORAGE / "audits" / filename
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Archivo de evidencia no encontrado.")
-    return FileResponse(path=file_path)
+    content_type, _ = mimetypes.guess_type(str(file_path))
+    return FileResponse(
+        path=file_path,
+        media_type=content_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"',
+            "Cache-Control": "public, max-age=86400",
+        },
+    )

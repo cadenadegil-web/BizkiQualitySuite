@@ -39,6 +39,46 @@ export async function uploadAuditEvidence(file: File): Promise<{ url: string; or
   return res.data;
 }
 
+/**
+ * Resuelve la URL real accesible para un archivo o enlace de evidencia.
+ * Corrige URLs que fueron guardadas con el origen del frontend (Vercel)
+ * o URLs relativas, redirigiéndolas al backend real (Render / Local).
+ */
+export function resolveEvidenceUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  const apiBase = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+
+  // Si ya apunta a un servicio externo (Google Drive, Dropbox, Cloudinary, etc.)
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    // Si contiene la ruta de evidencia pero apuntando al dominio equivocado (ej: frontend de Vercel)
+    if (trimmed.includes('/audits/evidence/')) {
+      const idx = trimmed.indexOf('/audits/evidence/');
+      return `${apiBase}${trimmed.substring(idx)}`;
+    }
+    return trimmed;
+  }
+
+  // Si es una ruta relativa (ej. /audits/evidence/... o audits/evidence/...)
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${apiBase}${cleanPath}`;
+}
+
+export function isImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  const clean = url.split('?')[0].toLowerCase();
+  return (
+    clean.endsWith('.jpg') ||
+    clean.endsWith('.jpeg') ||
+    clean.endsWith('.png') ||
+    clean.endsWith('.gif') ||
+    clean.endsWith('.webp') ||
+    clean.endsWith('.bmp') ||
+    clean.endsWith('.svg') ||
+    clean.includes('/evidence/')
+  );
+}
+
 export async function downloadAuditPDF(id: string, code: string): Promise<void> {
   const res = await api.get(`/audits/${id}/report`, { responseType: 'blob' });
   const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));

@@ -18,10 +18,11 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import InsertLinkIcon from '@mui/icons-material/InsertLink';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import GroupIcon from '@mui/icons-material/Group';
+import CloseIcon from '@mui/icons-material/Close';
 
 import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 
-import { createAudit, getAudit, updateAudit, uploadAuditEvidence } from '../../services/audits.service';
+import { createAudit, getAudit, updateAudit, uploadAuditEvidence, resolveEvidenceUrl, isImageUrl } from '../../services/audits.service';
 import { getCatalogItems } from '../../services/catalogs.service';
 import { AuditItemCreate } from '../../types/audit';
 import { classifyAuditItemObjective, getObjectiveColor } from '../../utils/auditObjectives';
@@ -70,6 +71,7 @@ export default function AuditFormPage() {
   const [evidenceTab, setEvidenceTab] = useState<number>(0);
   const [evidenceUrlInput, setEvidenceUrlInput] = useState<string>('');
   const [uploadingEvidence, setUploadingEvidence] = useState<boolean>(false);
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
 
   const [collaboratorModalItemKey, setCollaboratorModalItemKey] = useState<number | null>(null);
   const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
@@ -228,7 +230,7 @@ export default function AuditFormPage() {
     setUploadingEvidence(true);
     try {
       const res = await uploadAuditEvidence(file);
-      const fullUrl = res.url.startsWith('http') ? res.url : `${window.location.origin}${res.url}`;
+      const fullUrl = resolveEvidenceUrl(res.url);
       setEvidenceUrlInput(fullUrl);
       setItemField(evidenceModalItemKey, 'evidence_url', fullUrl);
       setSnack({ open: true, message: 'Evidencia subida correctamente.', severity: 'success' });
@@ -241,7 +243,8 @@ export default function AuditFormPage() {
 
   const saveEvidenceUrl = () => {
     if (evidenceModalItemKey !== null) {
-      setItemField(evidenceModalItemKey, 'evidence_url', evidenceUrlInput.trim() || null);
+      const resolved = evidenceUrlInput.trim() ? resolveEvidenceUrl(evidenceUrlInput.trim()) : null;
+      setItemField(evidenceModalItemKey, 'evidence_url', resolved);
     }
     setEvidenceModalItemKey(null);
   };
@@ -598,17 +601,49 @@ export default function AuditFormPage() {
                     {(item.evidence_url || item.non_compliant_collaborators) && (
                       <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
                         {item.evidence_url && (
-                          <Chip
-                            icon={<InsertLinkIcon fontSize="small" />}
-                            label="Ver Evidencia"
-                            color="info"
-                            size="small"
-                            variant="outlined"
-                            onClick={() => window.open(item.evidence_url!, '_blank')}
-                            onDelete={() => removeEvidence(item._key)}
-                            deleteIcon={<Tooltip title="Quitar evidencia"><DeleteIcon fontSize="small" /></Tooltip>}
-                            sx={{ fontWeight: 600, cursor: 'pointer' }}
-                          />
+                          <Stack direction="row" spacing={0.8} alignItems="center">
+                            {isImageUrl(item.evidence_url) && (
+                              <Tooltip title="Clic para ampliar imagen">
+                                <Box
+                                  component="img"
+                                  src={resolveEvidenceUrl(item.evidence_url)}
+                                  alt="Miniatura evidencia"
+                                  onClick={() => setPreviewModalUrl(resolveEvidenceUrl(item.evidence_url))}
+                                  onError={(e: any) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                  sx={{
+                                    width: 28,
+                                    height: 28,
+                                    borderRadius: 1,
+                                    objectFit: 'cover',
+                                    border: '1px solid #90caf9',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                    '&:hover': { transform: 'scale(1.15)', borderColor: '#1976d2' },
+                                  }}
+                                />
+                              </Tooltip>
+                            )}
+                            <Chip
+                              icon={<InsertLinkIcon fontSize="small" />}
+                              label="Ver Evidencia"
+                              color="info"
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                const url = resolveEvidenceUrl(item.evidence_url);
+                                if (isImageUrl(url)) {
+                                  setPreviewModalUrl(url);
+                                } else {
+                                  window.open(url, '_blank');
+                                }
+                              }}
+                              onDelete={() => removeEvidence(item._key)}
+                              deleteIcon={<Tooltip title="Quitar evidencia"><DeleteIcon fontSize="small" /></Tooltip>}
+                              sx={{ fontWeight: 600, cursor: 'pointer' }}
+                            />
+                          </Stack>
                         )}
                         {item.non_compliant_collaborators && (
                           <Chip
@@ -717,20 +752,54 @@ export default function AuditFormPage() {
 
               {evidenceUrlInput && !uploadingEvidence && (
                 <Box sx={{ mt: 2, p: 2, backgroundColor: '#f0f7ff', borderRadius: 2, textAlign: 'left' }}>
-                  <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 600, mb: 1 }}>
                     Archivo cargado:
                   </Typography>
+                  {isImageUrl(evidenceUrlInput) && (
+                    <Box sx={{ textAlign: 'center', mb: 1.5 }}>
+                      <Box
+                        component="img"
+                        src={resolveEvidenceUrl(evidenceUrlInput)}
+                        alt="Vista previa evidencia"
+                        onClick={() => setPreviewModalUrl(resolveEvidenceUrl(evidenceUrlInput))}
+                        onError={(e: any) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        sx={{
+                          maxWidth: '100%',
+                          maxHeight: 200,
+                          borderRadius: 1.5,
+                          border: '1px solid #bbdefb',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                          transition: 'opacity 0.2s',
+                          '&:hover': { opacity: 0.85 },
+                        }}
+                      />
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        (Clic en la foto para ampliar)
+                      </Typography>
+                    </Box>
+                  )}
                   <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Typography variant="body2" sx={{ wordBreak: 'break-all', maxWidth: '80%' }}>
+                    <Typography variant="body2" sx={{ wordBreak: 'break-all', maxWidth: '75%', fontSize: '0.8rem' }}>
                       {evidenceUrlInput}
                     </Typography>
                     <Stack direction="row" spacing={0.5}>
-                      <IconButton size="small" color="primary" onClick={() => window.open(evidenceUrlInput, '_blank')}>
-                        <OpenInNewIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => setEvidenceUrlInput('')}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      <Tooltip title="Abrir en nueva pestaña">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => window.open(resolveEvidenceUrl(evidenceUrlInput), '_blank')}
+                        >
+                          <OpenInNewIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Eliminar archivo">
+                        <IconButton size="small" color="error" onClick={() => setEvidenceUrlInput('')}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Stack>
                   </Stack>
                 </Box>
@@ -748,11 +817,31 @@ export default function AuditFormPage() {
               />
               {evidenceUrlInput && (
                 <Box sx={{ mt: 2 }}>
+                  {isImageUrl(evidenceUrlInput) && (
+                    <Box sx={{ textAlign: 'center', mb: 1.5 }}>
+                      <Box
+                        component="img"
+                        src={resolveEvidenceUrl(evidenceUrlInput)}
+                        alt="Vista previa"
+                        onClick={() => setPreviewModalUrl(resolveEvidenceUrl(evidenceUrlInput))}
+                        onError={(e: any) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        sx={{
+                          maxWidth: '100%',
+                          maxHeight: 200,
+                          borderRadius: 1.5,
+                          border: '1px solid #bbdefb',
+                          cursor: 'pointer',
+                        }}
+                      />
+                    </Box>
+                  )}
                   <Button
                     size="small"
                     variant="text"
                     startIcon={<OpenInNewIcon />}
-                    onClick={() => window.open(evidenceUrlInput, '_blank')}
+                    onClick={() => window.open(resolveEvidenceUrl(evidenceUrlInput), '_blank')}
                     sx={{ textTransform: 'none' }}
                   >
                     Probar enlace en nueva pestaña
@@ -825,6 +914,50 @@ export default function AuditFormPage() {
             Guardar Colaboradores
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Modal Visor de Evidencia / Lightbox */}
+      <Dialog
+        open={Boolean(previewModalUrl)}
+        onClose={() => setPreviewModalUrl(null)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Visualizador de Evidencia
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            {previewModalUrl && (
+              <Button
+                size="small"
+                startIcon={<OpenInNewIcon />}
+                onClick={() => window.open(previewModalUrl, '_blank')}
+                sx={{ textTransform: 'none' }}
+              >
+                Abrir en pestaña
+              </Button>
+            )}
+            <IconButton onClick={() => setPreviewModalUrl(null)}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        </DialogTitle>
+        <DialogContent dividers sx={{ textAlign: 'center', p: 2, backgroundColor: '#0f172a' }}>
+          {previewModalUrl && (
+            <Box
+              component="img"
+              src={previewModalUrl}
+              alt="Evidencia ampliada"
+              sx={{
+                maxWidth: '100%',
+                maxHeight: '75vh',
+                objectFit: 'contain',
+                borderRadius: 1,
+              }}
+            />
+          )}
+        </DialogContent>
       </Dialog>
 
       <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack(s => ({ ...s, open: false }))}>

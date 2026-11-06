@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
 
 from app.api import auth
 from app.api import users
@@ -16,6 +17,7 @@ from app.api import audits
 
 from app.core.config import settings
 from app.database.init_db import create_database
+from app.utils.file_storage import BASE_STORAGE, ensure_directory
 
 
 @asynccontextmanager
@@ -76,6 +78,10 @@ app.include_router(capa.router)
 app.include_router(evidence.router)
 app.include_router(catalogs.router)
 app.include_router(audits.router)
+
+# Mount local storage folder for direct file/evidence access
+ensure_directory("audits")
+app.mount("/storage", StaticFiles(directory=str(BASE_STORAGE)), name="storage")
 
 
 @app.get("/")

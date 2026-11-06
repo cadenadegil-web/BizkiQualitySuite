@@ -135,8 +135,27 @@ def create_database() -> None:
             active BOOLEAN NOT NULL DEFAULT TRUE
         );
         """,
+        """
+        CREATE TABLE IF NOT EXISTS managements (
+            id UUID PRIMARY KEY,
+            name VARCHAR(150) NOT NULL UNIQUE,
+            plant VARCHAR(100),
+            active BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        """,
         "ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS employee_code VARCHAR(10);",
         "ALTER TABLE collaborators ADD COLUMN IF NOT EXISTS position VARCHAR(150);",
+        """
+        INSERT INTO managements (id, name, plant, active)
+        VALUES 
+            (gen_random_uuid(), 'Gestión y Gente', NULL, TRUE),
+            (gen_random_uuid(), 'Operaciones', NULL, TRUE),
+            (gen_random_uuid(), 'Calidad', NULL, TRUE),
+            (gen_random_uuid(), 'Finanzas', NULL, TRUE),
+            (gen_random_uuid(), 'Mantenimiento', NULL, TRUE),
+            (gen_random_uuid(), 'Producción', NULL, TRUE)
+        ON CONFLICT (name) DO NOTHING;
+        """,
         """
         UPDATE collaborators
         SET employee_code = '10001', name = 'Carlos Martínez', position = 'Auxiliar de Empaque'

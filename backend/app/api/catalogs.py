@@ -11,6 +11,7 @@ from app.models.norm import Norm
 from app.models.responsible import Responsible
 from app.models.auditor import Auditor
 from app.models.collaborator import Collaborator
+from app.models.management import Management
 
 
 class CatalogItemSchema(BaseModel):
@@ -517,3 +518,66 @@ def delete_collaborator(collab_id: UUID, db: Session = Depends(get_db)):
     db.delete(collab)
     db.commit()
     return {"message": "Colaborador eliminado exitosamente"}
+
+
+# =========================================================
+# GERENCIAS
+# =========================================================
+
+@router.get("/managements", response_model=list[CatalogItemSchema])
+def get_managements(db: Session = Depends(get_db)):
+    return db.query(Management).order_by(Management.name.asc()).all()
+
+
+@router.post("/managements", response_model=CatalogItemSchema)
+def create_management(item: CatalogItemCreateSchema, db: Session = Depends(get_db)):
+    name_clean = item.name.strip()
+    if not name_clean:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El nombre de la gerencia es obligatorio.")
+    if db.query(Management).filter(Management.name.ilike(name_clean)).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="La gerencia ya existe.")
+
+    new_mgmt = Management(
+        name=name_clean,
+        plant=item.plant or None,
+        active=item.active,
+    )
+    db.add(new_mgmt)
+    db.commit()
+    db.refresh(new_mgmt)
+    return new_mgmt
+
+
+@router.put("/managements/{mgmt_id}", response_model=CatalogItemSchema)
+def update_management(mgmt_id: UUID, item: CatalogItemUpdateSchema, db: Session = Depends(get_db)):
+    mgmt = db.query(Management).filter(Management.id == mgmt_id).first()
+    if not mgmt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gerencia no encontrada.")
+
+    if item.name is not None:
+        name_clean = item.name.strip()
+        if not name_clean:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El nombre no puede estar vacío.")
+        if name_clean.lower() != mgmt.name.lower():
+            if db.query(Management).filter(Management.name.ilike(name_clean), Management.id != mgmt_id).first():
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ya existe una gerencia con ese nombre.")
+        mgmt.name = name_clean
+
+    if item.plant is not None:
+        mgmt.plant = item.plant or None
+    if item.active is not None:
+        mgmt.active = item.active
+
+    db.commit()
+    db.refresh(mgmt)
+    return mgmt
+
+
+@router.delete("/managements/{mgmt_id}")
+def delete_management(mgmt_id: UUID, db: Session = Depends(get_db)):
+    mgmt = db.query(Management).filter(Management.id == mgmt_id).first()
+    if not mgmt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Gerencia no encontrada.")
+    db.delete(mgmt)
+    db.commit()
+    return {"message": "Gerencia eliminada exitosamente"}

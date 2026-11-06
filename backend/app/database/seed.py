@@ -7,6 +7,7 @@ from app.models.norm import Norm
 from app.models.responsible import Responsible
 from app.models.auditor import Auditor
 from app.models.collaborator import Collaborator
+from app.models.management import Management
 
 
 def seed_database(db: Session):
@@ -106,6 +107,21 @@ def seed_database(db: Session):
             Collaborator(employee_code="10006", name="Juan Pérez", position="Operador de Mezcladora", plant="MDH"),
         ]
         db.add_all(collaborators)
+
+    # -----------------------
+    # GERENCIAS
+    # -----------------------
+
+    if db.query(Management).count() == 0:
+        managements = [
+            Management(name="Gestión y Gente", plant=None),
+            Management(name="Operaciones", plant=None),
+            Management(name="Calidad", plant=None),
+            Management(name="Finanzas", plant=None),
+            Management(name="Mantenimiento", plant=None),
+            Management(name="Producción", plant=None),
+        ]
+        db.add_all(managements)
 
     # -----------------------
     # NORMAS FSSC 22000

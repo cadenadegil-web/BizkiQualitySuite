@@ -176,14 +176,17 @@ export function exportCatalogToPDF(items: CatalogItem[], typeName: string): void
   const isNorm =
     !isCollaborator &&
     items.some((item) => item.category !== undefined || item.description !== undefined);
+  const isManagement = typeName.toLowerCase().includes("gerencia");
   const isArea =
     !isCollaborator &&
-    (typeName.toLowerCase().includes("área") || items.some((item) => item.plant !== undefined));
+    (isManagement || typeName.toLowerCase().includes("área") || items.some((item) => item.plant !== undefined));
 
   const headers = isCollaborator
     ? ["ID", "Nombre", "Cargo", "Planta", "Estado"]
     : isNorm
     ? ["Nombre", "Categoría", "Punto de Control", "Estado"]
+    : isManagement
+    ? ["Gerencia", "Planta", "Estado"]
     : isArea
     ? ["Nombre", "Planta", "Estado"]
     : ["Nombre", "Estado"];
@@ -274,9 +277,10 @@ export function exportCatalogToExcel(items: CatalogItem[], typeName: string): vo
   const isNorm =
     !isCollaborator &&
     items.some((item) => item.category !== undefined || item.description !== undefined);
+  const isManagement = typeName.toLowerCase().includes("gerencia");
   const isArea =
     !isCollaborator &&
-    (typeName.toLowerCase().includes("área") || items.some((item) => item.plant !== undefined));
+    (isManagement || typeName.toLowerCase().includes("área") || items.some((item) => item.plant !== undefined));
 
   const rows = items.map((item) => {
     const status = item.active ? "Activo" : "Inactivo";
@@ -294,6 +298,13 @@ export function exportCatalogToExcel(items: CatalogItem[], typeName: string): vo
         Nombre: item.name,
         Categoría: item.category ?? "—",
         "Punto de Control": item.description ?? "—",
+        Estado: status,
+      };
+    }
+    if (isManagement) {
+      return {
+        Gerencia: item.name,
+        Planta: item.plant ?? "—",
         Estado: status,
       };
     }
