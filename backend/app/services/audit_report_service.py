@@ -8,6 +8,9 @@ import tempfile
 import os
 from datetime import date
 from io import BytesIO
+from pathlib import Path
+
+from PIL import Image as PILImage
 
 try:
     from pylatex import (
@@ -29,7 +32,60 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
-from app.models.audit import Audit
+from app.models.audit import Audit, AuditItem
+from app.utils.file_storage import BASE_STORAGE
+
+LOGO_HIGUAMO_PATH = Path(__file__).resolve().parent.parent / "static" / "logo_molinos_del_higuamo.png"
+
+def _is_higuamo_plant(plant: str | None) -> bool:
+    if not plant:
+        return True  # Por defecto o histórico en el sistema MDH
+    p = str(plant).strip().lower()
+    return "higuam" in p or "mdh" in p or "molino" in p
+
+def _resolve_evidence_image_path(evidence_url: str | None) -> Path | None:
+    if not evidence_url or not isinstance(evidence_url, str):
+        return None
+    url_clean = evidence_url.strip().split("?")[0].split("#")[0]
+    if not url_clean:
+        return None
+    
+    filename = url_clean.replace("\\", "/").split("/")[-1]
+    if not filename:
+        return None
+
+    backend_app_dir = Path(__file__).resolve().parent.parent
+    backend_dir = backend_app_dir.parent
+    project_root = backend_dir.parent
+
+    candidates = [
+        BASE_STORAGE / "audits" / filename,
+        BASE_STORAGE / filename,
+        backend_dir / "storage" / "audits" / filename,
+        backend_dir / "storage" / filename,
+        project_root / "storage" / "audits" / filename,
+        Path("storage") / "audits" / filename,
+        Path("storage") / filename,
+        Path.cwd() / "storage" / "audits" / filename,
+        Path.cwd() / "backend" / "storage" / "audits" / filename,
+    ]
+    for c in candidates:
+        if c and c.is_file():
+            if c.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"]:
+                return c
+    return None
+
+def _create_reportlab_image_fitted(img_path: Path, max_width_cm: float, max_height_cm: float) -> Image:
+    """Crea un objeto Image de ReportLab escalado proporcionalmente sin deformar."""
+    try:
+        with PILImage.open(img_path) as im:
+            w_px, h_px = im.size
+            if w_px <= 0 or h_px <= 0:
+                return Image(str(img_path), width=max_width_cm*cm, height=max_height_cm*cm)
+            scale = min((max_width_cm * cm) / w_px, (max_height_cm * cm) / h_px)
+            return Image(str(img_path), width=w_px * scale, height=h_px * scale)
+    except Exception:
+        return Image(str(img_path), width=max_width_cm*cm, height=max_height_cm*cm)
 
 RESULT_LABELS = {
     "CONFORME": "Conforme",
@@ -66,15 +122,24 @@ def _generate_audit_pdf_reportlab(audit: Audit) -> bytes:
     
     elements = []
     
+    plant_str = audit.plant or (audit.area.plant if audit.area and audit.area.plant else "MDH")
+    is_higuamo = _is_higuamo_plant(plant_str)
+
     # Portada
-    elements.append(Spacer(1, 3*cm))
+    elements.append(Spacer(1, 1.2*cm))
+    if is_higuamo and LOGO_HIGUAMO_PATH.exists():
+        elements.append(_create_reportlab_image_fitted(LOGO_HIGUAMO_PATH, 5.0, 4.5))
+        elements.append(Spacer(1, 0.6*cm))
     elements.append(Paragraph("<b>INFORME DE AUDITORÍA BPM</b>", title_style))
-    elements.append(Spacer(1, 1.5*cm))
+    elements.append(Spacer(1, 1.0*cm))
     elements.append(Paragraph(f"<b>Código:</b> {audit.code}", ParagraphStyle('C', parent=normal_style, alignment=TA_CENTER, fontSize=14)))
     elements.append(Paragraph(f"<b>Fecha:</b> {_fmt_date(audit.audit_date)}", ParagraphStyle('D', parent=normal_style, alignment=TA_CENTER, fontSize=12)))
-    elements.append(Spacer(1, 2*cm))
-    elements.append(Paragraph("<b>MDH Quality Suite</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER)))
-    elements.append(Spacer(1, 4*cm))
+    elements.append(Spacer(1, 1.5*cm))
+    if is_higuamo:
+        elements.append(Paragraph("<b>Molinos del Higuamo</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER, fontSize=13, textColor=colors.HexColor("#0D47A1"))))
+    else:
+        elements.append(Paragraph(f"<b>Planta: {plant_str}</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER, fontSize=13)))
+    elements.append(Spacer(1, 3.0*cm))
     elements.append(Paragraph(f"<b>Auditor:</b> {audit.auditor}", ParagraphStyle('A', parent=normal_style, alignment=TA_CENTER)))
     elements.append(PageBreak())
     
@@ -198,18 +263,72 @@ def _generate_audit_pdf_reportlab(audit: Audit) -> bytes:
         
         # Evidencias
         elements.append(Paragraph("<b>6. Evidencias Fotográficas</b>", subtitle_style))
-        elements.append(Paragraph("En este espacio se documentan las pruebas visuales de los hallazgos.", normal_style))
+        elements.append(Paragraph("Registro fotográfico y documental de los puntos de control evaluados durante la auditoría.", normal_style))
         elements.append(Spacer(1, 0.5*cm))
-        ev_data = [["Espacio para Fotografía 1", "Espacio para Fotografía 2"], ["Espacio para Fotografía 3", "Espacio para Fotografía 4"]]
-        t_ev = Table(ev_data, colWidths=[8*cm, 8*cm], rowHeights=[6*cm, 6*cm])
-        t_ev.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 1, colors.grey),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.gray),
-        ]))
-        elements.append(t_ev)
-        elements.append(Spacer(1, 1*cm))
+
+        items_with_ev = [it for it in audit.items if it.evidence_url and str(it.evidence_url).strip()]
+
+        if not items_with_ev:
+            empty_table = Table([[
+                Paragraph("<i>No se registraron evidencias fotográficas digitales en los puntos evaluados de esta auditoría.</i>", ParagraphStyle('EvEmpty', parent=normal_style, alignment=TA_CENTER, textColor=colors.HexColor("#757575")))
+            ]], colWidths=[17*cm], rowHeights=[2.5*cm])
+            empty_table.setStyle(TableStyle([
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#BDBDBD")),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#FAFAFA")),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ]))
+            elements.append(empty_table)
+            elements.append(Spacer(1, 0.8*cm))
+        else:
+            ev_label_style = ParagraphStyle('EvLbl', parent=normal_style, fontSize=8.5, leading=11, fontName='Helvetica-Bold', textColor=colors.HexColor("#37474F"))
+            ev_val_style = ParagraphStyle('EvVal', parent=normal_style, fontSize=8.5, leading=11, textColor=colors.black)
+            
+            for item in items_with_ev:
+                img_path = _resolve_evidence_image_path(item.evidence_url)
+                
+                # Columna Izquierda: Imagen
+                if img_path:
+                    img_elem = _create_reportlab_image_fitted(img_path, 6.8, 5.0)
+                else:
+                    img_elem = Paragraph(f"<b>Evidencia documental/enlace:</b><br/>{item.evidence_url}", ParagraphStyle('NoImg', parent=normal_style, fontSize=8, textColor=colors.HexColor("#757575"), alignment=TA_CENTER))
+
+                # Columna Derecha: Detalles del ítem
+                res_color = "#2E7D32" if item.result == "CONFORME" else ("#C62828" if item.result == "NO_CONFORME" else "#E65100")
+                res_badge = f'<font color="{res_color}"><b>{RESULT_LABELS.get(item.result, item.result or "---")}</b></font>'
+                
+                colab_str = item.non_compliant_collaborators or "<i>Ninguno</i>"
+                comm_str = item.comment or "<i>Sin comentarios</i>"
+
+                details = [
+                    [Paragraph("<b>Ítem / Norma:</b>", ev_label_style), Paragraph(f"<b>{item.norm}</b> (Ítem #{item.order})", ev_val_style)],
+                    [Paragraph("<b>Punto de Control:</b>", ev_label_style), Paragraph(item.control_point, ev_val_style)],
+                    [Paragraph("<b>Resultado:</b>", ev_label_style), Paragraph(res_badge, ev_val_style)],
+                    [Paragraph("<b>Colaboradores:</b>", ev_label_style), Paragraph(colab_str, ev_val_style)],
+                    [Paragraph("<b>Comentarios:</b>", ev_label_style), Paragraph(comm_str, ev_val_style)],
+                ]
+                t_details = Table(details, colWidths=[2.8*cm, 6.8*cm])
+                t_details.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                    ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ]))
+
+                card_data = [[img_elem, t_details]]
+                t_card = Table(card_data, colWidths=[7.2*cm, 9.8*cm])
+                t_card.setStyle(TableStyle([
+                    ('BOX', (0, 0), (-1, -1), 0.75, colors.HexColor("#CFD8DC")),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ]))
+                elements.append(t_card)
+                elements.append(Spacer(1, 0.4*cm))
+            elements.append(Spacer(1, 0.4*cm))
         
         # Recomendaciones
         elements.append(Paragraph("<b>7. Recomendaciones</b>", subtitle_style))
@@ -264,16 +383,24 @@ def _generate_daily_report_pdf_reportlab(
     else:
         report_title = "INFORME DIARIO DE AUDITORÍAS"
     
+    is_higuamo = any(_is_higuamo_plant(au.plant or (au.area.plant if au.area else None)) for au in audits) if audits else True
+
     # Portada
-    elements.append(Spacer(1, 3*cm))
-    elements.append(Paragraph(f"<b>{report_title}</b>", title_style))
     elements.append(Spacer(1, 1.2*cm))
+    if is_higuamo and LOGO_HIGUAMO_PATH.exists():
+        elements.append(_create_reportlab_image_fitted(LOGO_HIGUAMO_PATH, 5.0, 4.5))
+        elements.append(Spacer(1, 0.6*cm))
+    elements.append(Paragraph(f"<b>{report_title}</b>", title_style))
+    elements.append(Spacer(1, 1.0*cm))
     elements.append(Paragraph(f"<b>Período / Fecha:</b> {date_str}", ParagraphStyle('C', parent=normal_style, alignment=TA_CENTER, fontSize=13)))
     elements.append(Spacer(1, 0.4*cm))
     elements.append(Paragraph(f"<b>Área evaluada:</b> {area_name or 'Todas las áreas'}", ParagraphStyle('CArea', parent=normal_style, alignment=TA_CENTER, fontSize=12)))
-    elements.append(Spacer(1, 2*cm))
-    elements.append(Paragraph("<b>MDH Quality Suite</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER)))
-    elements.append(Spacer(1, 3.5*cm))
+    elements.append(Spacer(1, 1.5*cm))
+    if is_higuamo:
+        elements.append(Paragraph("<b>Molinos del Higuamo</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER, fontSize=13, textColor=colors.HexColor("#0D47A1"))))
+    else:
+        elements.append(Paragraph("<b>MDH Quality Suite</b>", ParagraphStyle('B', parent=normal_style, alignment=TA_CENTER, fontSize=13)))
+    elements.append(Spacer(1, 2.5*cm))
     elements.append(Paragraph(f"<b>Auditorías registradas:</b> {len(audits)}", ParagraphStyle('A', parent=normal_style, alignment=TA_CENTER)))
     elements.append(PageBreak())
     
@@ -444,18 +571,75 @@ def _generate_daily_report_pdf_reportlab(
         
         # Evidencias
         elements.append(Paragraph("<b>6. Evidencias Fotográficas</b>", subtitle_style))
-        elements.append(Paragraph("En este espacio se documentan las pruebas visuales relevantes de las desviaciones encontradas durante la jornada.", normal_style))
+        elements.append(Paragraph("Registro fotográfico y documental recopilado en las auditorías del período evaluado.", normal_style))
         elements.append(Spacer(1, 0.5*cm))
-        ev_data = [["Espacio para Fotografía 1", "Espacio para Fotografía 2"], ["Espacio para Fotografía 3", "Espacio para Fotografía 4"]]
-        t_ev = Table(ev_data, colWidths=[8*cm, 8*cm], rowHeights=[6*cm, 6*cm])
-        t_ev.setStyle(TableStyle([
-            ('GRID', (0,0), (-1,-1), 1, colors.grey),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.gray),
-        ]))
-        elements.append(t_ev)
-        elements.append(Spacer(1, 1*cm))
+
+        all_evidence_items: list[tuple[Audit, AuditItem]] = []
+        for au in audits:
+            for it in au.items:
+                if it.evidence_url and str(it.evidence_url).strip():
+                    all_evidence_items.append((au, it))
+
+        if not all_evidence_items:
+            empty_table = Table([[
+                Paragraph("<i>No se registraron evidencias fotográficas digitales en las auditorías de este período.</i>", ParagraphStyle('EvEmptyDaily', parent=normal_style, alignment=TA_CENTER, textColor=colors.HexColor("#757575")))
+            ]], colWidths=[17.5*cm], rowHeights=[2.5*cm])
+            empty_table.setStyle(TableStyle([
+                ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#BDBDBD")),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#FAFAFA")),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ]))
+            elements.append(empty_table)
+            elements.append(Spacer(1, 0.8*cm))
+        else:
+            ev_label_style = ParagraphStyle('EvLblD', parent=normal_style, fontSize=8.5, leading=11, fontName='Helvetica-Bold', textColor=colors.HexColor("#37474F"))
+            ev_val_style = ParagraphStyle('EvValD', parent=normal_style, fontSize=8.5, leading=11, textColor=colors.black)
+
+            for au, item in all_evidence_items:
+                img_path = _resolve_evidence_image_path(item.evidence_url)
+                if img_path:
+                    img_elem = _create_reportlab_image_fitted(img_path, 6.8, 5.0)
+                else:
+                    img_elem = Paragraph(f"<b>Evidencia documental/enlace:</b><br/>{item.evidence_url}", ParagraphStyle('NoImgD', parent=normal_style, fontSize=8, textColor=colors.HexColor("#757575"), alignment=TA_CENTER))
+
+                res_color = "#2E7D32" if item.result == "CONFORME" else ("#C62828" if item.result == "NO_CONFORME" else "#E65100")
+                res_badge = f'<font color="{res_color}"><b>{RESULT_LABELS.get(item.result, item.result or "---")}</b></font>'
+                
+                colab_str = item.non_compliant_collaborators or "<i>Ninguno</i>"
+                comm_str = item.comment or "<i>Sin comentarios</i>"
+                a_name = au.area.name if au.area else "Sin Área"
+                plant_name = au.plant or (au.area.plant if au.area else "MDH")
+
+                details = [
+                    [Paragraph("<b>Auditoría:</b>", ev_label_style), Paragraph(f"<b>{au.code}</b> ({_fmt_date(au.audit_date)}) — {a_name} ({plant_name})", ev_val_style)],
+                    [Paragraph("<b>Punto / Norma:</b>", ev_label_style), Paragraph(f"<b>{item.norm}</b> — {item.control_point}", ev_val_style)],
+                    [Paragraph("<b>Resultado:</b>", ev_label_style), Paragraph(res_badge, ev_val_style)],
+                    [Paragraph("<b>Colaboradores:</b>", ev_label_style), Paragraph(colab_str, ev_val_style)],
+                    [Paragraph("<b>Comentarios:</b>", ev_label_style), Paragraph(comm_str, ev_val_style)],
+                ]
+                t_details = Table(details, colWidths=[2.8*cm, 7.3*cm])
+                t_details.setStyle(TableStyle([
+                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                    ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ]))
+
+                card_data = [[img_elem, t_details]]
+                t_card = Table(card_data, colWidths=[7.2*cm, 10.3*cm])
+                t_card.setStyle(TableStyle([
+                    ('BOX', (0, 0), (-1, -1), 0.75, colors.HexColor("#CFD8DC")),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+                    ('TOPPADDING', (0, 0), (-1, -1), 6),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                    ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ]))
+                elements.append(t_card)
+                elements.append(Spacer(1, 0.4*cm))
+            elements.append(Spacer(1, 0.4*cm))
         
         # Recomendaciones
         elements.append(Paragraph("<b>7. Recomendaciones</b>", subtitle_style))
@@ -534,15 +718,24 @@ def generate_audit_pdf(audit: Audit) -> bytes:
         doc.preamble.append(NoEscape(r"\renewcommand{\footrulewidth}{0.3pt}"))
 
         # Portada
+        plant_str = audit.plant or (audit.area.plant if audit.area and audit.area.plant else "MDH")
+        is_higuamo = _is_higuamo_plant(plant_str)
+
         doc.append(NoEscape(r"\begin{titlepage}"))
         doc.append(NoEscape(r"\begin{center}"))
-        doc.append(NoEscape(r"\vspace*{3cm}"))
+        doc.append(NoEscape(r"\vspace*{1cm}"))
+        if is_higuamo and LOGO_HIGUAMO_PATH.exists():
+            logo_tex = LOGO_HIGUAMO_PATH.as_posix()
+            doc.append(NoEscape(rf"\includegraphics[width=4.5cm]{{{logo_tex}}}\\[0.8cm]"))
         doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[0.5cm]"))
         doc.append(NoEscape(r"{\LARGE\textbf{\textcolor{mdh_blue}{INFORME DE AUDITOR\'IA BPM}}}\\[0.5cm]"))
         doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[1.5cm]"))
         doc.append(NoEscape(rf"{{\Large Código: {audit.code}}}\\[0.5cm]"))
-        doc.append(NoEscape(rf"{{\large Fecha: {_fmt_date(audit.audit_date)}}}\\[2cm]"))
-        doc.append(NoEscape(r"\textbf{MDH Quality Suite}\\[0.5cm]"))
+        doc.append(NoEscape(rf"{{\large Fecha: {_fmt_date(audit.audit_date)}}}\\[1.5cm]"))
+        if is_higuamo:
+            doc.append(NoEscape(r"{\Large\textbf{\textcolor{mdh_blue}{Molinos del Higuamo}}}\\[0.5cm]"))
+        else:
+            doc.append(NoEscape(rf"{{\Large\textbf{{Planta: {plant_str}}}}}\\[0.5cm]"))
         doc.append(NoEscape(r"\vfill"))
         doc.append(NoEscape(rf"Auditor: {audit.auditor}"))
         doc.append(NoEscape(r"\end{center}"))
@@ -784,15 +977,23 @@ def generate_daily_report_pdf(
             else report_date.strftime("%d/%m/%Y")
         )
         area_title = area_name or "Todas las áreas"
+        is_higuamo = any(_is_higuamo_plant(au.plant or (au.area.plant if au.area else None)) for au in audits) if audits else True
+
         doc.append(NoEscape(r"\begin{titlepage}"))
         doc.append(NoEscape(r"\begin{center}"))
-        doc.append(NoEscape(r"\vspace*{3cm}"))
+        doc.append(NoEscape(r"\vspace*{1cm}"))
+        if is_higuamo and LOGO_HIGUAMO_PATH.exists():
+            logo_tex = LOGO_HIGUAMO_PATH.as_posix()
+            doc.append(NoEscape(rf"\includegraphics[width=4.5cm]{{{logo_tex}}}\\[0.8cm]"))
         doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[0.5cm]"))
         doc.append(NoEscape(r"{\LARGE\textbf{\textcolor{mdh_blue}{INFORME CONSOLIDADO DE AUDITOR\'IAS}}}\\[0.5cm]"))
         doc.append(NoEscape(r"{\color{mdh_blue}\rule{\linewidth}{1.5pt}}\\[1.5cm]"))
         doc.append(NoEscape(rf"{{\Large Período de Reporte: {date_str}}}\\[0.6cm]"))
-        doc.append(NoEscape(rf"{{\large Área Evaluada: {area_title}}}\\[2cm]"))
-        doc.append(NoEscape(r"\textbf{MDH Quality Suite}\\[0.5cm]"))
+        doc.append(NoEscape(rf"{{\large Área Evaluada: {area_title}}}\\[1.5cm]"))
+        if is_higuamo:
+            doc.append(NoEscape(r"{\Large\textbf{\textcolor{mdh_blue}{Molinos del Higuamo}}}\\[0.5cm]"))
+        else:
+            doc.append(NoEscape(r"\textbf{MDH Quality Suite}\\[0.5cm]"))
         doc.append(NoEscape(r"\vfill"))
         doc.append(NoEscape(rf"Cantidad de Auditorías Registradas: {len(audits)}"))
         doc.append(NoEscape(r"\end{center}"))
